@@ -8,7 +8,13 @@
 </head>
 
 <body>
-
+    <h1>Test Page</h1>
+    <p>This is a simple test page.</p>
+    
+    <?php
+    // Example PHP code
+    echo "<p>Hello, World!</p>";
+    ?>
 </body>
 
 </html>

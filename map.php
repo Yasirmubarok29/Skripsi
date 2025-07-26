@@ -1,91 +1,149 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="id">
 <head>
-    <meta charset="utf-8" />
-    <title>A-Star Routing Demo</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <title>Evakuasi – A* + OSRM, Hindari Wilayah Bencana</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <style>
-        #map {
-            height: 100vh;
-        }
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 
-        .leaflet-top.leaflet-left {
-            margin-top: 60px;
-        }
-
-        #startBtn {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 999;
-            padding: 8px 12px;
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: sans-serif;
-        }
-    </style>
+  <style>
+    #map { height: 90vh; }
+    #infoBox {
+      padding: 10px;
+      background-color: #f8f9fa;
+      border-top: 1px solid #ddd;
+    }
+  </style>
 </head>
-
 <body>
 
-    <div id="startBtn">Start A-Star</div>
-    <div id="map"></div>
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">WebGIS Evakuasi</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <button id="startBtn" class="btn btn-light me-2">Jalur Evakuasi</button>
+          </li>
+          <li class="nav-item">
+            <a href="Login/login.php" class="btn btn-outline-light">Login</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+  <!-- PETA -->
+  <div id="map"></div>
 
-    <script>
-        const map = L.map('map').setView([-6.82, 107.14], 13); // Lokasi sekitar Cianjur
+  <!-- INFO BOX -->
+  <div id="infoBox" class="text-center">
+    Klik tombol <strong>Jalur Evakuasi</strong> untuk menampilkan rute evakuasi terdekat yang aman dari wilayah bencana.
+  </div>
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
 
-        // Titik A dan Titik B
-        const titikA = L.latLng(-6.819, 107.134);
-        const titikB = L.latLng(-6.825, 107.155);
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-        const markerA = L.marker(titikA).addTo(map).bindPopup("Titik A");
-        const markerB = L.marker(titikB).addTo(map).bindPopup("Titik B");
+  <script>
+    // INIT MAP
+    const map = L.map('map').setView([-6.82, 107.14], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
 
-        let routingControl = null;
+    // TITIK PENGGUNA
+    const titikUser = L.latLng(-6.819, 107.134);
+    L.marker(titikUser, {
+      icon: L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/64/64113.png',
+        iconSize: [26, 26]
+      })
+    }).addTo(map).bindPopup('Pengguna (dummy)').openPopup();
 
-        // Tombol Start A*
-        document.getElementById('startBtn').addEventListener('click', function() {
-            if (routingControl) {
-                map.removeControl(routingControl);
-            }
+    // POLIGON BENCANA
+    const wilayahBencana = L.polygon([
+      [-6.824, 107.140],
+      [-6.820, 107.150],
+      [-6.812, 107.148],
+      [-6.815, 107.135]
+    ], { color: 'red', fillColor: '#f03', fillOpacity: 0.25 })
+    .addTo(map).bindPopup('Wilayah Bencana');
 
-            routingControl = L.Routing.control({
-                waypoints: [titikA, titikB],
-                router: L.Routing.osrmv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1'
-                }),
-                lineOptions: {
-                    styles: [{
-                        color: 'blue',
-                        opacity: 0.6,
-                        weight: 5
-                    }]
-                },
-                createMarker: function() {
-                    return null;
-                }, // nonaktifkan marker default
-                addWaypoints: false,
-                draggableWaypoints: false
-            }).addTo(map);
-        });
-    </script>
+    // TITIK EVAKUASI
+    const evakuasiPoints = [
+      L.latLng(-6.825, 107.155),
+      L.latLng(-6.810, 107.130),
+      L.latLng(-6.818, 107.139), // dalam poligon
+      L.latLng(-6.822, 107.148)  // dalam poligon
+    ];
+    evakuasiPoints.forEach((pt, i) =>
+      L.marker(pt).addTo(map).bindPopup(`Evakuasi ${i + 1}`)
+    );
 
+    // FUNGSI CEK TITIK DALAM POLIGON
+    function isInsidePolygon(point, polygon) {
+      const x = point.lat, y = point.lng;
+      const vs = polygon.getLatLngs()[0];
+      let inside = false;
+      for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        const xi = vs[i].lat, yi = vs[i].lng;
+        const xj = vs[j].lat, yj = vs[j].lng;
+        const intersect = ((yi > y) != (yj > y)) &&
+                          (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function findNearestEvakuasi(from, points) {
+      let minDist = Infinity, closest = null;
+      points.forEach(pt => {
+        if (isInsidePolygon(pt, wilayahBencana)) return;
+        const d = from.distanceTo(pt);
+        if (d < minDist) { minDist = d; closest = pt; }
+      });
+      return closest;
+    }
+
+    let routingControl = null;
+    document.getElementById('startBtn').addEventListener('click', () => {
+      if (routingControl) map.removeControl(routingControl);
+
+      const nearest = findNearestEvakuasi(titikUser, evakuasiPoints);
+      const info = document.getElementById('infoBox');
+
+      if (!nearest) {
+        info.innerHTML = '<span class="text-danger">Semua titik evakuasi berada di dalam wilayah bencana!</span>';
+        return;
+      }
+
+      routingControl = L.Routing.control({
+        waypoints: [titikUser, nearest],
+        router: L.Routing.osrmv1({
+          serviceUrl: 'https://router.project-osrm.org/route/v1'
+        }),
+        lineOptions: { styles: [{ color: 'blue', opacity: 0.6, weight: 5 }] },
+        createMarker: () => null,
+        addWaypoints: false,
+        draggableWaypoints: false
+      }).addTo(map);
+
+      info.innerHTML = `Jalur evakuasi berhasil ditampilkan. Jarak ke titik evakuasi terdekat: <strong>${(titikUser.distanceTo(nearest)/1000).toFixed(2)} km</strong>`;
+    });
+  </script>
 </body>
-
 </html>
