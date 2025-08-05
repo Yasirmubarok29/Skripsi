@@ -1,172 +1,96 @@
+<?php
+require 'conection/db.php';
+
+// Ambil ringkasan data wilayah bencana
+$bencana = $conn->query("SELECT nama, color, created_at FROM wilayah_bencana ORDER BY created_at DESC LIMIT 5")->fetch_all(MYSQLI_ASSOC);
+
+// Ambil jumlah titik evakuasi dan wilayah bencana
+$jumlah_titik   = $conn->query("SELECT COUNT(*) FROM titik_evakuasi")->fetch_row()[0];
+$jumlah_polygon = $conn->query("SELECT COUNT(*) FROM wilayah_bencana")->fetch_row()[0];
+?>
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-    <meta charset="utf-8" />
-    <title>Evakuasi – A* + OSRM, Hindari Wilayah Bencana</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
-
-    <style>
-        #map {
-            height: 90vh;
-        }
-
-        #infoBox {
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-top: 1px solid #ddd;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>WebGIS Evakuasi – Informasi Bencana</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background-color: #f9f9f9; }
+    .hero { background-color: #f57c00; color: white; padding: 60px 0; }
+    .btn-start { background-color: #fff; color: #f57c00; font-weight: 600; }
+    .badge-color { display: inline-block; width: 16px; height: 16px; border-radius: 4px; margin-right: 5px; }
+    .section { padding: 40px 0; }
+  </style>
 </head>
-
 <body>
 
-    <!-- NAVBAR -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">WebGIS Evakuasi</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <button id="startBtn" class="btn btn-light me-2">Jalur Evakuasi</button>
-                    </li>
-                    <li class="nav-item">
-                        <a href="Login/login.php" class="btn btn-outline-light">Login</a>
-                    </li>
-                </ul>
-            </div>
+<!-- HERO -->
+<div class="hero text-center">
+  <div class="container">
+    <h1 class="display-5 fw-bold">Selamata Datang</h1>
+    <h1 class="display-5 fw-bold">Sistem Informasi Jalur Evakuasi Bencana</h1>
+    <p class="lead">Pantau kondisi bencana dan akses jalur evakuasi terdekat secara real-time</p>
+    <a href="home.php" class="btn btn-lg btn-start mt-3">Masuk ke Halaman Evakuasi</a>
+  </div>
+</div>
+
+<!-- INFORMASI STATISTIK -->
+<div class="section bg-white text-center">
+  <div class="container">
+    <h4 class="mb-4"> Statistik Wilayah</h4>
+    <div class="row justify-content-center">
+      <div class="col-md-4 mb-3">
+        <div class="card shadow-sm p-4">
+          <h1 class="text-warning"><?= $jumlah_polygon ?></h1>
+          <p>Wilayah Bencana Terdata</p>
         </div>
-    </nav>
-
-    <!-- PETA -->
-    <div id="map"></div>
-
-    <!-- INFO BOX -->
-    <div id="infoBox" class="text-center">
-        Klik tombol <strong>Jalur Evakuasi</strong> untuk menampilkan rute evakuasi terdekat yang aman dari wilayah bencana.
+      </div>
+      <div class="col-md-4 mb-3">
+        <div class="card shadow-sm p-4">
+          <h1 class="text-success"><?= $jumlah_titik ?></h1>
+          <p>Titik Evakuasi Tersedia</p>
+        </div>
+      </div>
     </div>
+  </div>
+</div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+<!-- DAFTAR WILAYAH BENCANA -->
+<div class="section">
+  <div class="container">
+    <h4 class="mb-4 text-center">Daftar Wilayah Bencana Terkini</h4>
+    <?php if (count($bencana) > 0): ?>
+      <div class="table-responsive">
+        <table class="table table-bordered text-center">
+          <thead class="table-light">
+            <tr>
+              <th>Nama Wilayah</th>
+              <th>Warna Penanda</th>
+              <th>Waktu Dicatat</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($bencana as $b): ?>
+              <tr>
+                <td><?= htmlspecialchars($b['nama']) ?></td>
+                <td><span class="badge-color" style="background:<?= $b['color'] ?>"></span><?= $b['color'] ?></td>
+                <td><?= date('d M Y H:i', strtotime($b['created_at'])) ?></td>
+              </tr>
+            <?php endforeach ?>
+          </tbody>
+        </table>
+      </div>
+    <?php else: ?>
+      <p class="text-muted text-center">Belum ada data wilayah bencana yang tercatat.</p>
+    <?php endif ?>
+  </div>
+</div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- FOOTER -->
+<div class="text-center text-muted py-3 bg-light">
+  &copy; <?= date('Y') ?> WebGIS Evakuasi – Kabupaten Cianjur
+</div>
 
-    <script>
-        // INIT MAP
-        const map = L.map('map').setView([-6.82, 107.14], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        // TITIK PENGGUNA
-        const titikUser = L.latLng(-6.819, 107.134);
-        L.marker(titikUser, {
-            icon: L.icon({
-                iconUrl: 'https://cdn-icons-png.flaticon.com/512/64/64113.png',
-                iconSize: [26, 26]
-            })
-        }).addTo(map).bindPopup('Pengguna (dummy)').openPopup();
-
-        // POLIGON BENCANA
-        const wilayahBencana = L.polygon([
-                [-6.824, 107.140],
-                [-6.820, 107.150],
-                [-6.812, 107.148],
-                [-6.815, 107.135]
-            ], {
-                color: 'red',
-                fillColor: '#f03',
-                fillOpacity: 0.25
-            })
-            .addTo(map).bindPopup('Wilayah Bencana');
-
-        // TITIK EVAKUASI
-        const evakuasiPoints = [
-            L.latLng(-6.825, 107.155),
-            L.latLng(-6.810, 107.130),
-            L.latLng(-6.818, 107.139), // dalam poligon
-            L.latLng(-6.822, 107.148) // dalam poligon
-        ];
-        evakuasiPoints.forEach((pt, i) =>
-            L.marker(pt).addTo(map).bindPopup(`Evakuasi ${i + 1}`)
-        );
-
-        // FUNGSI CEK TITIK DALAM POLIGON
-        function isInsidePolygon(point, polygon) {
-            const x = point.lat,
-                y = point.lng;
-            const vs = polygon.getLatLngs()[0];
-            let inside = false;
-            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-                const xi = vs[i].lat,
-                    yi = vs[i].lng;
-                const xj = vs[j].lat,
-                    yj = vs[j].lng;
-                const intersect = ((yi > y) != (yj > y)) &&
-                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-                if (intersect) inside = !inside;
-            }
-            return inside;
-        }
-
-        function findNearestEvakuasi(from, points) {
-            let minDist = Infinity,
-                closest = null;
-            points.forEach(pt => {
-                if (isInsidePolygon(pt, wilayahBencana)) return;
-                const d = from.distanceTo(pt);
-                if (d < minDist) {
-                    minDist = d;
-                    closest = pt;
-                }
-            });
-            return closest;
-        }
-
-        let routingControl = null;
-        document.getElementById('startBtn').addEventListener('click', () => {
-            if (routingControl) map.removeControl(routingControl);
-
-            const nearest = findNearestEvakuasi(titikUser, evakuasiPoints);
-            const info = document.getElementById('infoBox');
-
-            if (!nearest) {
-                info.innerHTML = '<span class="text-danger">Semua titik evakuasi berada di dalam wilayah bencana!</span>';
-                return;
-            }
-
-            routingControl = L.Routing.control({
-                waypoints: [titikUser, nearest],
-                router: L.Routing.osrmv1({
-                    serviceUrl: 'https://router.project-osrm.org/route/v1'
-                }),
-                lineOptions: {
-                    styles: [{
-                        color: 'blue',
-                        opacity: 0.6,
-                        weight: 5
-                    }]
-                },
-                createMarker: () => null,
-                addWaypoints: false,
-                draggableWaypoints: false
-            }).addTo(map);
-
-            info.innerHTML = `Jalur evakuasi berhasil ditampilkan. Jarak ke titik evakuasi terdekat: <strong>${(titikUser.distanceTo(nearest)/1000).toFixed(2)} km</strong>`;
-        });
-    </script>
 </body>
-
 </html>

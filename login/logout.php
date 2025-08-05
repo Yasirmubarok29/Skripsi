@@ -4,6 +4,6 @@ session_unset();         // Menghapus semua variabel session
 session_destroy();       // Menghancurkan session di server
 
 // Redirect ke halaman login
-header("Location: ../map.php");
+header("Location: ../index.php");
 exit;
 ?>
