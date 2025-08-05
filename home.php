@@ -37,7 +37,7 @@ $polygon_json = json_encode([
 
 <head>
   <meta charset="utf-8" />
-  <title>WebGIS Evakuasi Aman</title>
+  <title>Evakuasi A*</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
@@ -47,125 +47,39 @@ $polygon_json = json_encode([
     body {
       height: 100%;
       margin: 0;
-      font-family: 'Segoe UI', sans-serif;
+      padding: 0;
       display: flex;
       flex-direction: row;
+    }
+
+    body {
+      flex: 1;
       overflow: hidden;
     }
 
     .sidebar {
       width: 250px;
-      background-color: #f57c00;
+      background: #f57c00;
       color: white;
       padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    .btn-evakuasi {
-      background-color: white;
-      color: #f57c00;
-      font-weight: bold;
+      flex-shrink: 0;
     }
 
     #map {
-      flex-grow: 1;
-      height: 100%;
-    }
-
-    #map.blur-bg {
-      filter: blur(5px);
-    }
-
-    #infoBox {
-      padding: 10px;
-      background-color: #f8f9fa;
-      border-top: 1px solid #ddd;
-      text-align: center;
-    }
-
-    .d-flex-column {
-      display: flex;
-      flex-direction: column;
-      flex-grow: 1;
-    }
-
-    @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-      }
-
-      .sidebar {
-        width: 100%;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 15px;
-      }
+      flex: 1;
+      height: 100vh;
     }
   </style>
 </head>
 
 <body>
   <div class="sidebar">
-    <img src="./assets/logo.png" alt="Logo" width="150">
-    <a href="index.php" class="btn btn-outline-light">🏠 Beranda</a>
+    <h4>Evakuasi</h4>
     <button id="startBtn" class="btn btn-evakuasi">🚨 Jalur Aman</button>
-    <button class="btn btn-outline-light" data-bs-toggle="modal" data-bs-target="#loginModal">🔐 Login Admin</button>
   </div>
-  <div class="d-flex-column">
-    <div id="map"></div>
-    <div id="infoBox" class="text-secondary">
-      Klik tombol <strong>Jalur Aman</strong> untuk mencari rute terdekat ke titik evakuasi yang aman.
-    </div>
-  </div>
-
-  <!-- Modal Login Admin -->
-  <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content p-0 border-0" style="background: transparent;">
-        <div class="position-absolute top-0 start-0 w-100 h-100" style="backdrop-filter: blur(10px); background-color: rgba(255,255,255,0.2); z-index: 1; border-radius: 12px;"></div>
-        <div class="position-relative bg-white p-4 rounded-4 shadow" style="z-index: 2;">
-          <div class="text-center mb-3">
-            <img src="./assets/logo.png" width="120" class="mb-2">
-            <h4 class="text-primary">Login Admin</h4>
-          </div>
-          <?php
-          if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['password'])) {
-            $username = $_POST['username'];
-            $password = $_POST['password'];
-            $stmt = $conn->prepare("SELECT * FROM admin WHERE username = ? LIMIT 1");
-            $stmt->bind_param("s", $username);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if ($result && $result->num_rows === 1) {
-              $admin = $result->fetch_assoc();
-              if (password_verify($password, $admin['password'])) {
-                $_SESSION['admin_logged_in'] = true;
-                $_SESSION['admin'] = $admin['username'];
-                echo "<script>window.location.href='Dashboard/index.php'</script>";
-                exit;
-              } else {
-                echo '<div class="alert alert-danger">Password salah</div>';
-              }
-            } else {
-              echo '<div class="alert alert-danger">Username tidak ditemukan</div>';
-            }
-          }
-          ?>
-          <form method="POST">
-            <div class="mb-3"><label class="form-label">Username</label><input type="text" name="username" class="form-control" required></div>
-            <div class="mb-3"><label class="form-label">Password</label><input type="password" name="password" class="form-control" required></div>
-            <button type="submit" class="btn btn-primary w-100">Masuk</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     const map = L.map('map').setView([-6.82, 107.14], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
@@ -182,12 +96,54 @@ $polygon_json = json_encode([
       })
     }).addTo(map);
 
-    // titip evakuasi
+    // jalur evakuasi
     markerData.forEach((m, i) => {
       L.marker([m.lat, m.lng]).addTo(map).bindPopup(`🧱 Titik Evakuasi ${i + 1}: ${m.nama}`);
     });
 
-    // Data jalur akan digunakan nanti
+    let graphNodes = {};
+    let graphEdges = [];
+
+    function pointToKey(latlng) {
+      return latlng.lat.toFixed(6) + ',' + latlng.lng.toFixed(6);
+    }
+
+    function haversineDistance(latlng1, latlng2) {
+      const R = 6371e3;
+      const rad = x => x * Math.PI / 180;
+      const dLat = rad(latlng2.lat - latlng1.lat);
+      const dLng = rad(latlng2.lng - latlng1.lng);
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(latlng1.lat)) * Math.cos(rad(latlng2.lat)) *
+        Math.sin(dLng / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function isInDisasterArea(latlng) {
+      return polygonData.features.some(polygon =>
+        turf.booleanPointInPolygon(turf.point([latlng.lng, latlng.lat]), polygon)
+      );
+    }
+
+    function addEdge(a, b, weight) {
+      if (isInDisasterArea(a) || isInDisasterArea(b)) return;
+      const keyA = pointToKey(a);
+      const keyB = pointToKey(b);
+      if (!graphNodes[keyA]) graphNodes[keyA] = a;
+      if (!graphNodes[keyB]) graphNodes[keyB] = b;
+      graphEdges.push({
+        from: keyA,
+        to: keyB,
+        weight
+      });
+      graphEdges.push({
+        from: keyB,
+        to: keyA,
+        weight
+      });
+    }
+
     fetch('data/jalan_cianjur.geojson')
       .then(res => res.json())
       .then(data => {
@@ -197,13 +153,110 @@ $polygon_json = json_encode([
             weight: 2
           },
           onEachFeature: function(feature, layer) {
-            if (feature.properties && feature.properties.nama) {
-              layer.bindPopup("Nama: " + feature.properties.nama);
+
+            if (!feature.geometry || feature.geometry.type !== 'LineString') return;
+
+            const coords = feature.geometry.coordinates;
+            if (!Array.isArray(coords)) return;
+
+            for (let i = 0; i < coords.length - 1; i++) {
+              const coordA = coords[i];
+              const coordB = coords[i + 1];
+
+              if (
+                Array.isArray(coordA) && coordA.length === 2 &&
+                Array.isArray(coordB) && coordB.length === 2
+              ) {
+                const a = L.latLng(coordA[1], coordA[0]);
+                const b = L.latLng(coordB[1], coordB[0]);
+                const distance = haversineDistance(a, b);
+                addEdge(a, b, distance);
+              }
             }
           }
+
         }).addTo(map);
-      })
-      .catch(err => console.error("Gagal memuat data.geojson:", err));
+      });
+
+    function aStar(start, goal) {
+      const startKey = pointToKey(start);
+      const goalKey = pointToKey(goal);
+      const openSet = new Set([startKey]);
+      const cameFrom = {},
+        gScore = {},
+        fScore = {};
+      for (let key in graphNodes) {
+        gScore[key] = Infinity;
+        fScore[key] = Infinity;
+      }
+      gScore[startKey] = 0;
+      fScore[startKey] = haversineDistance(start, goal);
+
+      while (openSet.size > 0) {
+        let currentKey = [...openSet].reduce((a, b) => fScore[a] < fScore[b] ? a : b);
+        if (currentKey === goalKey) {
+          let path = [graphNodes[goalKey]];
+          while (cameFrom[currentKey]) {
+            currentKey = cameFrom[currentKey];
+            path.unshift(graphNodes[currentKey]);
+          }
+          return path;
+        }
+        openSet.delete(currentKey);
+        const neighbors = graphEdges.filter(e => e.from === currentKey);
+        for (let edge of neighbors) {
+          const tentativeG = gScore[currentKey] + edge.weight;
+          if (tentativeG < gScore[edge.to]) {
+            cameFrom[edge.to] = currentKey;
+            gScore[edge.to] = tentativeG;
+            fScore[edge.to] = tentativeG + haversineDistance(graphNodes[edge.to], goal);
+            openSet.add(edge.to);
+          }
+        }
+      }
+      return null;
+    }
+
+    function findNearestNode(latlng) {
+      let nearest = null,
+        minDist = Infinity;
+      for (let key in graphNodes) {
+        const dist = haversineDistance(latlng, graphNodes[key]);
+        if (dist < minDist) {
+          minDist = dist;
+          nearest = graphNodes[key];
+        }
+      }
+      return nearest;
+    }
+
+    document.getElementById("startBtn").addEventListener("click", () => {
+      if (!navigator.geolocation) return alert("Geolocation tidak didukung.");
+      navigator.geolocation.getCurrentPosition(pos => {
+        const userLatLng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+        const startNode = findNearestNode(userLatLng);
+        let nearestEvakuasi = null,
+          shortestDist = Infinity;
+        markerData.forEach(m => {
+          const d = haversineDistance(userLatLng, m);
+          if (d < shortestDist) {
+            shortestDist = d;
+            nearestEvakuasi = m;
+          }
+        });
+        const goalNode = findNearestNode(nearestEvakuasi);
+        const path = aStar(startNode, goalNode);
+        if (path) {
+          L.polyline(path, {
+            color: 'blue',
+            weight: 4
+          }).addTo(map);
+          map.fitBounds(L.polyline(path).getBounds());
+        } else {
+          alert("Jalur tidak ditemukan!");
+        }
+      });
+    });
   </script>
 </body>
 
