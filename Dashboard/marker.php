@@ -56,169 +56,248 @@ function esc($s) {
     <meta charset="UTF-8">
     <title>Tambah Marker Titik</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css">
-    <style>
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5f5f5; }
-        #map { height: 60vh; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
-        .card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-        .main-content { margin-left: 260px; padding: 20px; }
-
-        :root{
-      --orange:#ff6f00;
-      --sidebar-bg:#1f2937;
-      --sidebar-hover:#374151;
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    #map {
+      width: 100%;
+      height: 48vh;
+      min-height: 320px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.10);
+      border: 1px solid #eee;
+      background: #eaeaea;
+      z-index: 1;
     }
-        /* Sidebar Style */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 250px;
-            height: 100vh;
-            background-color: #1f2937;
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .sidebar .brand{
-            display:flex;
-            align-items:center;
-            gap:.5rem;
-            width: 100%;
-            padding:16px 20px;
-            background:var(--orange);
-            font-weight:600;
-            }
-            .sidebar .brand img{
-            height:30px;
-        }
-        .sidebar .nav-links {
-            width: 100%;
-        }
-        .sidebar .nav-links a {
-            display: block;
-            color: #fff;
-            padding: 10px 20px;
-            text-decoration: none;
-        }
-        .sidebar .nav-links a.active,
-        .sidebar .nav-links a:hover {
-            background-color: #374151;
-        }
-        .sidebar .logout {
-            margin-top: auto;
-            padding: 20px;
-        }
-
-        .topbar {
-            height: 60px;
-            background: #ff6f00;
-            color: white;
-            padding: 0 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-left: 250px;
-        }
-    </style>
+    .sidebar .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 0 18px 0;
+  background: linear-gradient(90deg, #ff6f00 0%, #ff9800 100%);
+  border-bottom: 1px solid #ffe0b2;
+}
+.sidebar .sidebar-header img {
+  height: 64px;
+  width: 64px;
+  object-fit: contain;
+  margin: 0 auto;
+  display: block;
+}
+.sidebar .nav {
+  margin-top: 0.5rem;
+}
+.sidebar .nav-link {
+  color: #333;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: 12px 24px;
+  border-radius: 0 20px 20px 0;
+  margin-bottom: 2px;
+  transition: background .2s, color .2s;
+  font-size: 1rem;
+}
+.sidebar .nav-link.active, .sidebar .nav-link:hover {
+  background: #ffe0b2;
+  color: #ff6f00;
+}
+.sidebar .logout {
+  padding: 16px 20px 8px 20px;
+  border-top: 1px solid #ffe0b2;
+}
+.sidebar .logout .nav-link {
+  color: #d32f2f;
+  font-weight: 600;
+  background: none;
+  border-radius: 0 20px 20px 0;
+}
+.sidebar .logout .nav-link:hover {
+  background: #ffe0b2;
+  color: #b71c1c;
+}
+    body {
+      background: #f5f5f5;
+      font-family: 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+    }
+    .sidebar {
+      min-width: 250px;
+      max-width: 250px;
+      height: 100vh;
+      background: #fff;
+      border-right: 1px solid #eee;
+      padding: 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1030;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 8px rgba(0,0,0,.07);
+    }
+    .content-wrapper {
+      margin-left: 250px;
+      transition: margin-left .25s cubic-bezier(.4,2,.6,1);
+      min-height: 100vh;
+      background: #f5f5f5;
+    }
+    .content-wrapper.full {
+      margin-left: 0;
+    }
+    @media (max-width: 991.98px) {
+      .content-wrapper {
+        margin-left: 0;
+      }
+      .sidebar {
+        min-width: 210px;
+        max-width: 210px;
+      }
+    }
+  </style>
 </head>
 <body>
 
 <!-- SIDEBAR -->
-<aside id="sidebar" class="sidebar">
-    <div class="brand">
-        <img src="../assets/logo.png" alt="Logo" width="110" height="100">
-    </div>
-    <nav class="nav-links">
-        <a href="index.php">🏠 Dashboard</a>
-        <a href="marker.php" class="active">📍 Tambah Marker Titik</a>
-        <a href="poligon.php">🗺️ Tambah Polygon Bencana</a>
-    </nav>
-    <div class="logout">
-        <a href="../Login/logout.php" class="btn btn-outline-light btn-sm">🚪 Logout</a>
-    </div>
-</aside>
-
-<!-- TOPBAR -->
-<div class="topbar">
-    <h5 class="mb-0">📍 Tambah Titik Evakuasi</h5>
-    <span>Halo, <?= htmlspecialchars($_SESSION['admin']) ?></span>
-</div>
+<nav id="sidebar" class="sidebar d-flex flex-column">
+  <div class="sidebar-header justify-content-center">
+    <img src="../assets/logo.png" alt="Logo" width="100" height="100" style="display:block; margin:0 auto;">
+  </div>
+  <ul class="nav nav-pills flex-column mb-auto mt-3" style="gap:2px;">
+    <li class="nav-item">
+      <a href="index.php" class="nav-link d-flex align-items-center gap-2">
+        <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+      </a>
+    </li>
+    <li>
+      <a href="marker.php" class="nav-link active d-flex align-items-center gap-2">
+        <i class="bi bi-geo-alt-fill"></i> <span>Tambah Marker Titik</span>
+      </a>
+    </li>
+    <li>
+      <a href="poligon.php" class="nav-link d-flex align-items-center gap-2">
+        <i class="bi bi-vector-pen"></i> <span>Tambah Polygon Bencana</span>
+      </a>
+    </li>
+  </ul>
+  <div class="logout mt-auto mb-2">
+    <a href="../Login/logout.php" class="nav-link d-flex align-items-center gap-2">
+      <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
+    </a>
+  </div>
+</nav>
 
 <!-- MAIN CONTENT -->
-<div class="main-content">
+<div id="contentWrapper" class="content-wrapper">
     <?php if ($error): ?><div class="alert alert-danger"><?= esc($error) ?></div><?php endif; ?>
     <?php if ($success): ?><div class="alert alert-success"><?= esc($success) ?></div><?php endif; ?>
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card p-3">
-                <p class="text-muted mb-2">Klik pada peta atau isi manual koordinat di bawah.</p>
-                <div id="map"></div>
+            <div class="card shadow-sm h-100 border-0 bg-light">
+                <div class="card-header bg-warning bg-gradient text-dark d-flex justify-content-between align-items-center border-0" style="border-radius:12px 12px 0 0; font-weight:600;">
+                    <span><i class="bi bi-geo-alt-fill me-1"></i> Pilih lokasi pada peta atau isi koordinat manual</span>
+                    <button class="btn btn-sm btn-outline-dark bg-white border-0" type="button" onclick="map.setView([-6.82, 107.14], 10)"><i class="bi bi-arrow-clockwise"></i> Reset Peta</button>
+                </div>
+                <div class="p-3 bg-white rounded-bottom"><div id="map"></div></div>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card p-3">
-                <h5 class="mb-3">Form Tambah Titik</h5>
-                <form method="post">
+            <div class="card shadow-sm h-100 border-0 bg-light">
+                <div class="card-header bg-primary bg-gradient text-white border-0" style="border-radius:12px 12px 0 0; font-weight:600;">
+                  <i class="bi bi-plus-circle me-1"></i> Form Tambah Titik
+                </div>
+                <div class="p-3 bg-white rounded-bottom">
+                <form method="post" autocomplete="off">
                     <input type="hidden" name="action" value="create">
                     <div class="mb-3">
                         <label class="form-label">Nama Titik/Posko</label>
-                        <input type="text" name="nama" class="form-control" required>
+                        <input type="text" name="nama" class="form-control" required placeholder="Contoh: Posko Utama">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Latitude</label>
-                        <input type="text" name="latitude" id="lat" class="form-control" required>
+                        <input type="text" name="latitude" id="lat" class="form-control" required placeholder="-6.82">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Longitude</label>
-                        <input type="text" name="longitude" id="lng" class="form-control" required>
+                        <input type="text" name="longitude" id="lng" class="form-control" required placeholder="107.14">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Keterangan</label>
-                        <textarea name="keterangan" class="form-control"></textarea>
+                        <textarea name="keterangan" class="form-control" placeholder="Keterangan tambahan..."></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Simpan Titik</button>
                 </form>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="card p-3 mt-4">
-        <h5 class="mb-3">📋 Daftar Semua Titik</h5>
+    <div class="card mt-4 shadow-sm">
+        <div class="card-header bg-success bg-gradient text-white d-flex justify-content-between align-items-center border-0" style="border-radius:12px 12px 0 0; font-weight:600;">
+            <span><i class="bi bi-list-check me-1"></i> Daftar Semua Titik Evakuasi</span>
+            <input type="text" id="searchTable" class="form-control form-control-sm w-auto border-0" placeholder="Cari nama..." style="min-width:180px;">
+        </div>
+        <div class="p-3 bg-white rounded-bottom">
         <div class="table-responsive">
-            <table class="table table-bordered table-striped table-sm">
-                <thead class="table-light">
-                    <tr>
-                        <th>#</th>
-                        <th>Nama</th>
-                        <th>Latitude</th>
-                        <th>Longitude</th>
-                        <th>Keterangan</th>
-                        <th>Dibuat</th>
-                        <th>Aksi</th>
-                    </tr>
+            <table class="table table-bordered table-hover table-striped table-sm align-middle" id="titikTable">
+                <thead class="table-light align-middle">
+                  <tr>
+                    <th class="fw-bold text-center">#</th>
+                    <th class="fw-bold">Nama</th>
+                    <th class="fw-bold">Latitude</th>
+                    <th class="fw-bold">Longitude</th>
+                    <th class="fw-bold">Keterangan</th>
+                    <th class="fw-bold">Dibuat</th>
+                    <th class="fw-bold text-center">Aksi</th>
+                  </tr>
                 </thead>
                 <tbody>
-                    <?php if ($all): $no=1; foreach($all as $row): ?>
-                    <tr>
-                        <td><?= $no++ ?></td>
-                        <td><?= esc($row['nama']) ?></td>
-                        <td><?= esc($row['latitude']) ?></td>
-                        <td><?= esc($row['longitude']) ?></td>
-                        <td><?= esc($row['keterangan']) ?></td>
-                        <td><?= esc($row['waktu_dibuat']) ?></td>
-                        <td><a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Hapus titik ini?')">Hapus</a></td>
-                    </tr>
-                    <?php endforeach; else: ?>
-                    <tr><td colspan="7" class="text-center text-muted">Belum ada data</td></tr>
-                    <?php endif; ?>
+                  <?php if ($all): $no=1; foreach($all as $row): ?>
+                  <tr>
+                    <td class="text-center text-secondary small"><?= $no++ ?></td>
+                    <td class="fw-semibold text-dark"><?= esc($row['nama']) ?></td>
+                    <td><span class="badge rounded-pill bg-primary-subtle text-primary small px-2 py-1"><?= esc($row['latitude']) ?></span></td>
+                    <td><span class="badge rounded-pill bg-primary-subtle text-primary small px-2 py-1"><?= esc($row['longitude']) ?></span></td>
+                    <td><?= esc($row['keterangan']) ? esc($row['keterangan']) : '<span class="text-muted fst-italic">-</span>' ?></td>
+                    <td><span class="badge rounded-pill bg-secondary-subtle text-dark small px-2 py-1"><?= esc($row['waktu_dibuat']) ?></span></td>
+                    <td class="text-center">
+                      <a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger rounded-circle" title="Hapus" onclick="return confirm('Hapus titik ini?')">
+                        <i class="bi bi-trash"></i>
+                      </a>
+                    </td>
+                  </tr>
+                  <?php endforeach; else: ?>
+                  <tr><td colspan="7" class="text-center text-muted">Belum ada data</td></tr>
+                  <?php endif; ?>
                 </tbody>
             </table>
         </div>
+        </div>
     </div>
+
+    <!-- Floating Action Button (FAB) for quick add -->
+    <button class="btn-fab d-lg-none" title="Tambah Titik" onclick="window.scrollTo({top:0,behavior:'smooth'})">+</button>
+
+    <script>
+    // Sidebar toggle (mobile)
+    const sidebar = document.getElementById('sidebar');
+    const contentWrapper = document.getElementById('contentWrapper');
+    const btnToggle = document.getElementById('btnToggle');
+    if(btnToggle) {
+        btnToggle.addEventListener('click', () => {
+            if (sidebar.style.transform === 'translateX(-100%)') {
+                sidebar.style.transform = '';
+                contentWrapper.classList.remove('full');
+            } else {
+                sidebar.style.transform = 'translateX(-100%)';
+                contentWrapper.classList.add('full');
+            }
+        });
+    }
+    </script>
 </div>
 
 <!-- LEAFLET LIBRARY -->
@@ -227,53 +306,54 @@ function esc($s) {
 <script>
 // Inisialisasi peta hanya sekali
 const map = L.map('map').setView([-6.82, 107.14], 10);
-
-// Tambahkan tile layer OpenStreetMap
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-// ========== TAMPILKAN POLYGON BENCANA DARI DATABASE ==========
+// Tampilkan polygon bencana dari database
 const polygonsFromDB = <?= json_encode($polygons, JSON_UNESCAPED_UNICODE) ?>;
 polygonsFromDB.forEach(p => {
     try {
         const geojson = JSON.parse(p.geojson);
         L.geoJSON(geojson, {
             style: { color: p.color, fillColor: p.color, fillOpacity: 0.4 }
-        }).addTo(map).bindPopup(p.nama);
+        }).addTo(map).bindTooltip(p.nama, {permanent:false, direction:'top'});
     } catch (e) {
         console.error("Error parsing polygon:", e);
     }
 });
 
-// ========== TAMPILKAN MARKER TITIK POSKO DARI DATABASE ==========
+// Tampilkan marker titik posko dari database
 const markers = <?= json_encode($all, JSON_UNESCAPED_UNICODE) ?>;
 markers.forEach(m => {
-    L.marker([m.latitude, m.longitude])
-        .addTo(map)
-        .bindPopup(`<b>${m.nama}</b><br>Lat: ${m.latitude}, Lng: ${m.longitude}`);
+    const marker = L.marker([m.latitude, m.longitude]).addTo(map);
+    marker.bindPopup(`
+      <div style='min-width:180px'>
+        <div class='fw-bold mb-1'><i class='bi bi-geo-alt-fill text-primary'></i> ${m.nama}</div>
+        <div class='small text-muted mb-1'>Lat: <b>${m.latitude}</b> | Lng: <b>${m.longitude}</b></div>
+        <div class='mb-1'>${m.keterangan ? m.keterangan : '<span class=\'text-muted fst-italic\'>Tidak ada keterangan</span>'}</div>
+        <div class='text-secondary small'>${m.waktu_dibuat ? 'Dibuat: ' + m.waktu_dibuat : ''}</div>
+      </div>
+    `);
+    marker.bindTooltip(`<b>${m.nama}</b>`, {permanent:false, direction:'top'});
 });
 
-// ========== BISA KLIK PETA UNTUK PILIH TITIK ==========
+// Klik peta untuk pilih titik
 let marker = null;
 map.on('click', function(e) {
     const { lat, lng } = e.latlng;
-
-    // Isi form input (jika ada)
     const latInput = document.getElementById('lat');
     const lngInput = document.getElementById('lng');
     if (latInput && lngInput) {
         latInput.value = lat.toFixed(6);
         lngInput.value = lng.toFixed(6);
     }
-
     if (marker) map.removeLayer(marker);
     marker = L.marker([lat, lng]).addTo(map)
-        .bindPopup(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`).openPopup();
+        .bindTooltip(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`, {permanent:false, direction:'top'}).openTooltip();
 });
 
-
-// ========== TAMBAHKAN BATAS ADMINISTRATIF CIANJUR (GeoJSON statis) ==========
+// Tambahkan batas administratif Cianjur (GeoJSON statis)
 fetch('../assets/cianjur.geojson')
     .then(res => {
         if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
@@ -287,9 +367,19 @@ fetch('../assets/cianjur.geojson')
                 fillOpacity: 0.1,
                 dashArray: '5,5'
             }
-        }).addTo(map).bindPopup("Wilayah Administratif Cianjur");
+        }).addTo(map).bindTooltip("Wilayah Administratif Cianjur", {permanent:false, direction:'top'});
     })
     .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
+
+// Interaktif: filter tabel
+document.getElementById('searchTable').addEventListener('input', function() {
+    const val = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#titikTable tbody tr');
+    rows.forEach(row => {
+        const nama = row.children[1]?.textContent.toLowerCase() || '';
+        row.style.display = nama.includes(val) ? '' : 'none';
+    });
+});
 </script>
 
 </body>

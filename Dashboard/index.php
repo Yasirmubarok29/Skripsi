@@ -60,171 +60,273 @@ $polygon_geojson = json_encode([
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
 
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
-    :root{
-      --orange:#ff6f00;
-      --sidebar-bg:#1f2937;
-      --sidebar-hover:#374151;
+    .sidebar .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 0 18px 0;
+  background: linear-gradient(90deg, #ff6f00 0%, #ff9800 100%);
+  border-bottom: 1px solid #ffe0b2;
+}
+.sidebar .sidebar-header img {
+  height: 64px;
+  width: 64px;
+  object-fit: contain;
+  margin: 0 auto;
+  display: block;
+}
+.sidebar .nav {
+  margin-top: 0.5rem;
+}
+.sidebar .nav-link {
+  color: #333;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: 12px 24px;
+  border-radius: 0 20px 20px 0;
+  margin-bottom: 2px;
+  transition: background .2s, color .2s;
+  font-size: 1rem;
+}
+.sidebar .nav-link.active, .sidebar .nav-link:hover {
+  background: #ffe0b2;
+  color: #ff6f00;
+}
+.sidebar .logout {
+  padding: 16px 20px 8px 20px;
+  border-top: 1px solid #ffe0b2;
+}
+.sidebar .logout .nav-link {
+  color: #d32f2f;
+  font-weight: 600;
+  background: none;
+  border-radius: 0 20px 20px 0;
+}
+.sidebar .logout .nav-link:hover {
+  background: #ffe0b2;
+  color: #b71c1c;
+}
+    body {
+      background: #f5f5f5;
+      font-family: 'Segoe UI', sans-serif;
+      overflow-x: hidden;
     }
-    body{
-      background:#f5f5f5;
-      font-family:'Segoe UI', sans-serif;
-      overflow-x:hidden;
+    .sidebar {
+      min-width: 250px;
+      max-width: 250px;
+      height: 100vh;
+      background: #fff;
+      border-right: 1px solid #eee;
+      padding: 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1030;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 8px rgba(0,0,0,.07);
     }
-    /* Sidebar */
-    .sidebar{
-      position:fixed;
-      top:0; left:0;
-      width:250px;
-      height:100vh;
-      background:var(--sidebar-bg);
-      color:#fff;
-      display:flex;
-      flex-direction:column;
-      z-index:1000;
-      transition:transform .25s ease;
-    }
-    .sidebar.collapsed{
-      transform:translateX(-100%);
-    }
-    .sidebar .brand{
-      display:flex;
-      align-items:center;
-      gap:.5rem;
-      padding:16px 20px;
-      background:var(--orange);
-      font-weight:600;
-    }
-    .sidebar .brand img{
-      height:30px;
-    }
-    .nav-links{
-      flex:1;
-      padding:12px 0;
-      overflow-y:auto;
-    }
-    .nav-links a{
-      color:#e5e7eb;
-      text-decoration:none;
-      display:flex;
-      align-items:center;
-      gap:.5rem;
-      padding:10px 20px;
-      transition:background .2s;
-      font-size:0.95rem;
-    }
-    .nav-links a.active,
-    .nav-links a:hover{
-      background:var(--sidebar-hover);
-      color:#fff;
-    }
-    .logout{
-      padding:12px 20px 20px 20px;
-      border-top:1px solid rgba(255,255,255,.08);
-    }
-    .logout a{
-      width:100%;
-      display:block;
-      text-align:left;
-      color:#fca5a5 !important;
-    }
-
-    /* Topbar */
-    .topbar {
-      height: 60px;
-      background: #ff6f00;
-      color: white;
-      padding: 0 20px;
+    .sidebar .sidebar-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: .5rem;
+      padding: 18px 20px 14px 20px;
+      background: linear-gradient(90deg, #ff6f00 0%, #ff9800 100%);
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #fff2;
+      color: #fff;
     }
-    .btn-toggle{
-      background:var(--orange);
-      color:#fff;
-      border:none;
-      padding:6px 10px;
-      border-radius:6px;
+    .sidebar .sidebar-header img {
+      height: 36px;
+      margin-right: 8px;
     }
-
-    /* Main */
-    .content-wrapper{
-      margin-left:250px;
-      transition:margin-left .25s ease;
+    .sidebar .nav {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 0;
     }
-    .content-wrapper.full{
-      margin-left:0;
+    .sidebar .nav-link {
+      color: #333;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: 12px 24px;
+      border-radius: 0 20px 20px 0;
+      margin-bottom: 2px;
+      transition: background .2s, color .2s;
     }
-    #map{
-      height:78vh;
-      min-height:500px;
-      border-radius:10px;
-      box-shadow:0 2px 6px rgba(0,0,0,.08);
+    .sidebar .nav-link.active, .sidebar .nav-link:hover {
+      background: #ffe0b2;
+      color: #ff6f00;
     }
-    .card-soft{
-      border:none;
-      border-radius:12px;
-      box-shadow:0 2px 8px rgba(0,0,0,.06);
+    .sidebar .logout {
+      padding: 16px 20px 24px 20px;
+      border-top: 1px solid #ffe0b2;
     }
-    .legend{
-      position:absolute;
-      bottom:20px;
-      right:20px;
-      background:#fff;
-      border-radius:8px;
-      box-shadow:0 2px 6px rgba(0,0,0,.15);
-      padding:10px 12px;
-      font-size:13px;
-      z-index:999;
-      max-width:240px;
+    .sidebar .logout .nav-link {
+      color: #d32f2f;
+      font-weight: 600;
+      background: none;
+      border-radius: 0 20px 20px 0;
     }
-    .legend h6{
-      font-size:13px;
-      margin-bottom:6px;
-      font-weight:600;
+    .sidebar .logout .nav-link:hover {
+      background: #ffe0b2;
+      color: #b71c1c;
     }
-    .badge-color{
-      display:inline-block;
-      width:14px;
-      height:14px;
-      border-radius:3px;
-      margin-right:6px;
-      border:1px solid #ddd;
+    .content-wrapper {
+      margin-left: 250px;
+      transition: margin-left .25s cubic-bezier(.4,2,.6,1);
+      min-height: 100vh;
+      background: #f5f5f5;
     }
-
-    @media (max-width: 991.98px){
-      .content-wrapper{
-        margin-left:0;
+    .content-wrapper.full {
+      margin-left: 0;
+    }
+    #map {
+      height: 74vh;
+      min-height: 420px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.10);
+      border: 1px solid #eee;
+    }
+    .legend {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.13);
+      padding: 14px 16px;
+      font-size: 14px;
+      z-index: 999;
+      max-width: 260px;
+      border: 1px solid #eee;
+      transition: box-shadow .2s;
+    }
+    .legend h6 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .badge-color {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      margin-right: 8px;
+      border: 1px solid #ddd;
+    }
+    .card-soft {
+      border: none;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      background: #fff;
+      transition: box-shadow .2s;
+    }
+    .card-header-modern {
+      background: linear-gradient(90deg, #ff6f00 0%, #ff9800 100%);
+      color: #fff;
+      border-radius: 12px 12px 0 0;
+      padding: 18px 24px 12px 24px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 8px rgba(255,111,0,.08);
+    }
+    @media (max-width: 991.98px) {
+      .content-wrapper {
+        margin-left: 0;
+      }
+      .sidebar {
+        min-width: 210px;
+        max-width: 210px;
+      }
+    }
+    @media (max-width: 575.98px) {
+      .legend {
+        right: 8px;
+        bottom: 8px;
+        padding: 8px 8px;
       }
     }
   </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<aside id="sidebar" class="sidebar">
-  <div class="brand">
-    <img src="../assets/logo.png" alt="Logo" width="110" height="100">
+<nav id="sidebar" class="sidebar d-flex flex-column">
+  <div class="sidebar-header justify-content-center" style="padding-bottom:18px; border-bottom:1px solid #ffe0b2; background:linear-gradient(90deg,#ff6f00 0%,#ff9800 100%);">
+    <img src="../assets/logo.png" alt="Logo" width="100" height="100" style="display:block; margin:0 auto;">
   </div>
-
-  <nav class="nav-links">
-    <a href="#" class="active">🏠 Dashboard</a>
-    <a href="marker.php">📍 Tambah Marker Titik</a>
-    <a href="poligon.php">🗺️ Tambah Polygon Bencana</a>
-  </nav>
-
-  <div class="logout">
-    <a href="../Login/logout.php" class="btn btn-outline-light btn-sm">🚪 Logout</a>
+  <ul class="nav nav-pills flex-column mb-auto mt-3" style="gap:2px;">
+    <li class="nav-item">
+      <a href="#" class="nav-link active d-flex align-items-center gap-2" aria-current="page">
+        <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+      </a>
+    </li>
+    <li>
+      <a href="marker.php" class="nav-link d-flex align-items-center gap-2">
+        <i class="bi bi-geo-alt-fill"></i> <span>Tambah Marker Titik</span>
+      </a>
+    </li>
+    <li>
+      <a href="poligon.php" class="nav-link d-flex align-items-center gap-2">
+        <i class="bi bi-vector-pen"></i> <span>Tambah Polygon Bencana</span>
+      </a>
+    </li>
+  </ul>
+  <div class="logout mt-auto mb-2">
+    <a href="../Login/logout.php" class="nav-link d-flex align-items-center gap-2">
+      <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
+    </a>
   </div>
-</aside>
+</nav>
+
+<!-- SIDEBAR (Bootstrap 5.3 style) -->
+<nav id="sidebar" class="sidebar d-flex flex-column">
+  <div class="sidebar-header">
+    <img src="../assets/logo.png" alt="Logo" width="200" height="200">
+  
+  </div>
+  <ul class="nav nav-pills flex-column mb-auto">
+    <li class="nav-item">
+      <a href="#" class="nav-link active" aria-current="page">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+    </li>
+    <li>
+      <a href="marker.php" class="nav-link">
+        <i class="bi bi-geo-alt-fill"></i> Tambah Marker Titik
+      </a>
+    </li>
+    <li>
+      <a href="poligon.php" class="nav-link">
+        <i class="bi bi-vector-pen"></i> Tambah Polygon Bencana
+      </a>
+    </li>
+  </ul>
+  <div class="logout mt-auto">
+    <a href="../Login/logout.php" class="nav-link">
+      <i class="bi bi-box-arrow-right"></i> Logout
+    </a>
+  </div>
+</nav>
 
 <!-- MAIN -->
 <div id="contentWrapper" class="content-wrapper">
   <!-- TOPBAR -->
   <div class="topbar">
-    <button id="btnToggle" class="btn-toggle d-lg-none">☰</button>
+    <button id="btnToggle" class="btn btn-light d-lg-none me-2" style="font-size:1.3rem;"><i class="bi bi-list"></i></button>
     <div class="d-flex align-items-center gap-2">
-      <h5 class="mb-0">📊 Dashboard Admin Bencana</h5>
+      <h5 class="mb-0"><i class="bi bi-speedometer2 me-1"></i> Dashboard Admin Bencana</h5>
       <span class="badge bg-warning text-dark">v1.0</span>
     </div>
     <span class="text-muted small d-none d-lg-inline">Hi, <?= htmlspecialchars($_SESSION['admin'] ?? 'Admin') ?></span>
@@ -233,27 +335,26 @@ $polygon_geojson = json_encode([
   <main class="container-fluid py-4">
     <div class="row g-3">
       <div class="col-lg-12">
-        <div class="card card-soft p-3">
-          <h5 class="mb-1">Visualisasi Peta</h5>
-          <p class="text-muted mb-3">Menampilkan semua <strong>titik evakuasi</strong> & <strong>wilayah bencana</strong> dari database.</p>
-
-          <div class="row g-2 mb-2">
-            <div class="col-md-6">
-              <div class="input-group">
-                <input type="text" class="form-control" id="searchInput" placeholder="Cari kecamatan (cth: cugenang, cipanas, pacet)...">
-                <button class="btn btn-primary" id="searchBtn">🔍 Cari</button>
+        <div class="card card-soft p-0">
+          <div class="card-header-modern">Visualisasi Peta Wilayah & Titik Evakuasi</div>
+          <div class="p-3">
+            <p class="text-muted mb-3">Menampilkan semua <strong>titik evakuasi</strong> dan <strong>wilayah bencana</strong> dari database.</p>
+            <div class="row g-2 mb-2">
+              <div class="col-md-6">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="searchInput" placeholder="Cari kecamatan (cth: cugenang, cipanas, pacet)...">
+                  <button class="btn btn-primary" id="searchBtn">Cari</button>
+                </div>
+              </div>
+            </div>
+            <div class="position-relative">
+              <div id="map"></div>
+              <div id="legend" class="legend d-none">
+                <h6>Legenda Wilayah Bencana</h6>
+                <div id="legendList"></div>
               </div>
             </div>
           </div>
-
-          <div class="position-relative">
-            <div id="map"></div>
-            <div id="legend" class="legend d-none">
-              <h6>Legenda Wilayah Bencana</h6>
-              <div id="legendList"></div>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>
@@ -269,8 +370,13 @@ $polygon_geojson = json_encode([
   const contentWrapper = document.getElementById('contentWrapper');
   const btnToggle = document.getElementById('btnToggle');
   btnToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('collapsed');
-    contentWrapper.classList.toggle('full');
+    if (sidebar.style.transform === 'translateX(-100%)') {
+      sidebar.style.transform = '';
+      contentWrapper.classList.remove('full');
+    } else {
+      sidebar.style.transform = 'translateX(-100%)';
+      contentWrapper.classList.add('full');
+    }
   });
 
   // Leaflet map init

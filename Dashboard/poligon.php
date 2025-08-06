@@ -58,64 +58,185 @@ $markers = $conn->query("SELECT nama, latitude, longitude FROM titik_evakuasi")-
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
   <style>
-    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5f5f5; }
-    .main-content { margin-left: 260px; padding: 20px; }
-    #map { height: 60vh; border-radius: 8px; margin-bottom: 20px; }
-    :root{
-      --orange:#ff6f00;
-      --sidebar-bg:#1f2937;
-      --sidebar-hover:#374151;
+    :root {
+      --orange: #ff6f00;
+      --sidebar-bg: #1f2937;
+      --sidebar-hover: #374151;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      overflow-x: hidden;
     }
     .sidebar {
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       width: 250px;
       height: 100vh;
-      background-color: #1f2937;
+      background: var(--sidebar-bg);
       color: #fff;
       display: flex;
       flex-direction: column;
+      z-index: 1000;
+      transition: transform .25s cubic-bezier(.4,2,.6,1);
+      box-shadow: 2px 0 8px rgba(0,0,0,.07);
       align-items: center;
     }
-    .sidebar .brand{
-      display:flex;
-      align-items:center;
-      gap:.5rem;
-      width: 100%;
-      padding:16px 20px;
-      background:var(--orange);
-      font-weight:600;
+    .sidebar.collapsed {
+      transform: translateX(-100%);
     }
-    .sidebar .brand img{
-      height:30px;
+    .sidebar .brand {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      width: 100%;
+      padding: 18px 20px 14px 20px;
+      background: var(--orange);
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #fff2;
+    }
+    .sidebar .brand img {
+      height: 36px;
+      margin-right: 8px;
     }
     .sidebar .nav-links {
       width: 100%;
+      padding: 16px 0;
     }
     .sidebar .nav-links a {
       display: block;
-      color: #fff;
-      padding: 10px 20px;
+      color: #e5e7eb;
+      padding: 12px 24px;
       text-decoration: none;
+      border-radius: 6px 0 0 6px;
+      margin-bottom: 2px;
+      font-size: 1rem;
+      transition: background .2s;
     }
     .sidebar .nav-links a.active,
     .sidebar .nav-links a:hover {
-      background-color: #374151;
+      background-color: var(--sidebar-hover);
+      color: #fff;
     }
     .sidebar .logout {
       margin-top: auto;
-      padding: 20px;
+      padding: 16px 20px 24px 20px;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+    .sidebar .logout a {
+      width: 100%;
+      display: block;
+      text-align: left;
+      color: #fca5a5 !important;
+      font-weight: 500;
     }
     .topbar {
-      height: 60px;
+      height: 64px;
       background: #ff6f00;
       color: white;
-      padding: 0 20px;
+      padding: 0 28px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      border-bottom: 1px solid #fff2;
       margin-left: 250px;
+      margin-bottom: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1100;
+    }
+    .btn-toggle {
+      background: var(--orange);
+      color: #fff;
+      border: none;
+      padding: 7px 12px;
+      border-radius: 6px;
+      font-size: 1.2rem;
+      margin-right: 10px;
+      transition: background .2s;
+    }
+    .btn-toggle:hover {
+      background: #e65c00;
+    }
+    .main-content {
+      margin-left: 250px;
+      padding: 32px 24px 24px 24px;
+      min-height: 100vh;
+      background: #f5f5f5;
+      transition: margin-left .25s cubic-bezier(.4,2,.6,1);
+    }
+    .main-content.full {
+      margin-left: 0;
+    }
+    .card {
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+      background: #fff;
+      border: none;
+      transition: box-shadow .2s;
+    }
+    .card-header-modern {
+      background: linear-gradient(90deg, #ff6f00 0%, #ff9800 100%);
+      color: #fff;
+      border-radius: 12px 12px 0 0;
+      padding: 18px 24px 12px 24px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 8px rgba(255,111,0,.08);
+    }
+    #map {
+      height: 48vh;
+      min-height: 320px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.10);
+      border: 1px solid #eee;
+      margin-bottom: 20px;
+    }
+    .table {
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      transition: box-shadow .2s;
+    }
+    .table thead {
+      background: #f8f9fa;
+    }
+    .table-hover tbody tr:hover {
+      background: #ffe0b2 !important;
+      transition: background .2s;
+    }
+    .table-striped tbody tr:nth-of-type(odd) {
+      background-color: #f6f6f6;
+    }
+    .btn-success {
+      background: var(--orange);
+      border: none;
+      transition: background .2s;
+    }
+    .btn-success:hover, .btn-warning:hover {
+      background: #e65c00;
+      color: #fff;
+    }
+    .form-label {
+      font-weight: 500;
+    }
+    @media (max-width: 991.98px) {
+      .main-content {
+        margin-left: 0;
+        padding: 18px 6px 6px 6px;
+      }
+      .sidebar {
+        width: 210px;
+      }
+      .topbar {
+        padding: 0 12px;
+        margin-left: 0;
+      }
     }
   </style>
 </head>
@@ -125,56 +246,106 @@ $markers = $conn->query("SELECT nama, latitude, longitude FROM titik_evakuasi")-
     <img src="../assets/logo.png" alt="Logo" width="110" height="100" />
   </div>
   <nav class="nav-links">
-    <a href="index.php">🏠 Dashboard</a>
-    <a href="marker.php">📍 Tambah Marker Titik</a>
-    <a href="poligon.php" class="active">🗺️ Tambah Polygon Bencana</a>
+    <a href="index.php">Dashboard</a>
+    <a href="marker.php">Tambah Marker Titik</a>
+    <a href="poligon.php" class="active">Tambah Polygon Bencana</a>
   </nav>
   <div class="logout">
     <a href="../Login/logout.php" class="btn btn-outline-light btn-sm">🚪 Logout</a>
   </div>
 </aside>
 <div class="topbar">
-  <h5 class="mb-0">🗺️ Kelola Polygon Wilayah Bencana</h5>
+  <button id="btnToggle" class="btn-toggle d-lg-none me-2">☰</button>
+  <h5 class="mb-0">Kelola Polygon Wilayah Bencana</h5>
   <span>Halo, <?= htmlspecialchars($_SESSION['admin']) ?></span>
 </div>
 <div class="main-content">
-  <form id="formPolygon" method="post">
-    <input type="hidden" name="action" value="simpan" id="formAction">
-    <input type="hidden" name="id" id="polygonId">
-    <input type="hidden" name="geojson" id="geojsonData">
-    <input type="hidden" name="color" id="color" value="#ff0000">
-    <div class="row g-2">
-      <div class="col-md-3"><input type="text" name="nama" id="nama" class="form-control" placeholder="Nama" required></div>
-      <div class="col-md-3">
-        <select name="status" id="status" class="form-select" required>
-          <option value="bahaya">🔴 Bahaya</option>
-          <option value="siaga">🟠 Siaga</option>
-          <option value="waspada">🟡 Waspada</option>
-        </select>
+  <div class="row g-4 mb-4">
+    <div class="col-lg-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header-modern">Peta Wilayah Bencana</div>
+        <div class="p-3"><div id="map" class="mb-2"></div></div>
       </div>
-      <div class="col-md-6"><button type="submit" class="btn btn-success w-100">💾 Simpan</button></div>
     </div>
-  </form>
-  <div id="map" class="my-3"></div>
-  <table class="table table-bordered table-sm">
-    <thead><tr><th>#</th><th>Nama</th><th>Status</th><th>Warna</th><th>Waktu</th><th>Aksi</th></tr></thead>
-    <tbody>
-    <?php $no=1; foreach ($polygons as $p): ?>
-      <tr>
-        <td><?= $no++ ?></td>
-        <td><?= htmlspecialchars($p['nama']) ?></td>
-        <td><?= htmlspecialchars($p['status']) ?></td>
-        <td><span style="background:<?= $p['color'] ?>;width:40px;height:20px;display:inline-block;"></span></td>
-        <td><?= $p['created_at'] ?></td>
-        <td>
-          <button onclick='editPolygon(<?= json_encode($p) ?>)' class="btn btn-sm btn-warning">✏ Edit</button>
-          <a href="?hapus=<?= $p['id'] ?>" onclick="return confirm('Hapus?')" class="btn btn-sm btn-danger">🗑</a>
-        </td>
-      </tr>
-    <?php endforeach ?>
-    </tbody>
-  </table>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header-modern">Form Polygon Wilayah Bencana</div>
+        <div class="p-3">
+          <form id="formPolygon" method="post">
+            <input type="hidden" name="action" value="simpan" id="formAction">
+            <input type="hidden" name="id" id="polygonId">
+            <input type="hidden" name="geojson" id="geojsonData">
+            <input type="hidden" name="color" id="color" value="#ff0000">
+            <div class="mb-3">
+              <label class="form-label">Nama Wilayah</label>
+              <input type="text" name="nama" id="nama" class="form-control" placeholder="Nama Wilayah" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Status</label>
+              <select name="status" id="status" class="form-select" required>
+                <option value="bahaya">Bahaya</option>
+                <option value="siaga">Siaga</option>
+                <option value="waspada">Waspada</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-success w-100">Simpan Polygon</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-header-modern d-flex justify-content-between align-items-center">
+      <span>Daftar Polygon Wilayah Bencana</span>
+      <input type="text" id="searchTable" class="form-control form-control-sm w-auto" placeholder="Cari nama..." style="min-width:180px;">
+    </div>
+    <div class="p-3">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover table-striped table-sm align-middle" id="polygonTable">
+          <thead class="table-light">
+            <tr><th>#</th><th>Nama</th><th>Status</th><th>Warna</th><th>Waktu</th><th>Aksi</th></tr>
+          </thead>
+          <tbody>
+          <?php $no=1; foreach ($polygons as $p): ?>
+            <tr>
+              <td><?= $no++ ?></td>
+              <td><?= htmlspecialchars($p['nama']) ?></td>
+              <td><?= htmlspecialchars($p['status']) ?></td>
+              <td><span style="background:<?= $p['color'] ?>;width:40px;height:20px;display:inline-block;border-radius:4px;"></span></td>
+              <td><?= $p['created_at'] ?></td>
+              <td>
+                <button onclick='editPolygon(<?= json_encode($p) ?>)' class="btn btn-sm btn-warning">Edit</button>
+                <a href="?hapus=<?= $p['id'] ?>" onclick="return confirm('Hapus?')" class="btn btn-sm btn-danger">Hapus</a>
+              </td>
+            </tr>
+          <?php endforeach ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
+<script>
+// Sidebar toggle (mobile)
+const sidebar = document.querySelector('.sidebar');
+const contentWrapper = document.querySelector('.main-content');
+const btnToggle = document.getElementById('btnToggle');
+if(btnToggle) {
+    btnToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        contentWrapper.classList.toggle('full');
+    });
+}
+// Interaktif: filter tabel polygon
+document.getElementById('searchTable').addEventListener('input', function() {
+    const val = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#polygonTable tbody tr');
+    rows.forEach(row => {
+        const nama = row.children[1]?.textContent.toLowerCase() || '';
+        row.style.display = nama.includes(val) ? '' : 'none';
+    });
+});
+</script>
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script>
