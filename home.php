@@ -131,10 +131,25 @@ $polygon_json = json_encode([
 </head>
 
 <body>
-  <header class="w-100 position-relative d-flex flex-column align-items-center justify-content-center" style="background: #fff3e0; color: #f57c00; padding: 12px 0 8px 0; box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);">
-    <img src="assets/logo.png" alt="Evastar Logo" style="width:70px;height:70px;object-fit:contain; margin-bottom:4px;">
-    <span class="fw-bold" style="font-size:1.5rem;letter-spacing:1px;">Sistem Jalur Evakuasi Cerdas Kabupaten Cianjur</span>
-  </header>
+  <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-lg" style="background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%); min-height:70px;">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="#" style="font-weight:700; font-size:1.3rem; letter-spacing:1px;">
+        <img src="assets/logo.png" alt="Evastar Logo" style="width:48px;height:48px;object-fit:contain;">
+        <span class="d-none d-md-inline" style="color:#fff;">Evakuasi Cerdas Cianjur</span>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topbarNav" aria-controls="topbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse justify-content-end" id="topbarNav">
+        <ul class="navbar-nav mb-2 mb-lg-0 align-items-center gap-2">
+          <li class="nav-item">
+          
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
   <div class="main-content">
     <div class="sidebar">
       <h4 class="d-flex align-items-center gap-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Evakuasi Bencana</h4>
@@ -160,6 +175,26 @@ $polygon_json = json_encode([
         </div>
       </div>
       <button id="loginBtn" type="button" class="btn btn-outline-warning w-100 d-flex align-items-center justify-content-center gap-2" style="font-weight:bold; border-radius:20px;" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="bi bi-person-circle"></i> Login</button>
+
+      <!-- Tabel info jalan yang dilalui -->
+      <div id="jalanInfoContainer" class="mt-3" style="display:none;">
+        <div class="card shadow-sm" style="border-radius:12px;">
+          <div class="card-header py-2 px-3" style="background:linear-gradient(90deg,#ff9800 0%,#f57c00 100%);color:#fff;font-weight:600;font-size:1rem;border-radius:12px 12px 0 0;">Jalan yang Dilalui</div>
+          <div class="card-body p-2">
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0" style="font-size:0.95em;">
+                <thead class="table-light">
+                  <tr><th>Nama Jalan</th><th>Jarak (m)</th></tr>
+                </thead>
+                <tbody id="jalanInfoTable"></tbody>
+                <tfoot>
+                  <tr style="background:#fffbe7;font-weight:700;"><td>Total Jarak</td><td id="totalJarakCell"></td></tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -497,14 +532,72 @@ $polygon_json = json_encode([
       candidates.sort((a, b) => a.dist - b.dist);
       const goalNode = candidates[0].node;
       const path = aStar(startNode, goalNode);
+      // Tampilkan polyline dan info jalan
       if (path) {
         L.polyline(path, {
           color: 'blue',
           weight: 4
         }).addTo(map);
         map.fitBounds(L.polyline(path).getBounds());
+
+        // Ambil info jalan dari GeoJSON jalan_cianjur
+        fetch('data/jalan_cianjur.geojson')
+          .then(res => res.json())
+          .then(jalanGeojson => {
+            // Cari ruas jalan yang dilalui
+            let jalanDilalui = [];
+            let totalJarak = 0;
+            for (let i = 0; i < path.length - 1; i++) {
+              const a = path[i];
+              const b = path[i + 1];
+              let namaJalan = '-';
+              let minDist = Infinity;
+              let found = false;
+              // Cari ruas terdekat di GeoJSON
+              jalanGeojson.features.forEach(f => {
+                if (f.geometry.type === 'LineString') {
+                  for (let j = 0; j < f.geometry.coordinates.length - 1; j++) {
+                    const ca = f.geometry.coordinates[j];
+                    const cb = f.geometry.coordinates[j + 1];
+                    const la = {lat: ca[1], lng: ca[0]};
+                    const lb = {lat: cb[1], lng: cb[0]};
+                    // Cek apakah ruas ini mirip dengan ruas path
+                    const distA = haversineDistance(a, la);
+                    const distB = haversineDistance(b, lb);
+                    const distAB = haversineDistance(a, b);
+                    const distLAB = haversineDistance(la, lb);
+                    if (distA < 30 && distB < 30 && Math.abs(distAB - distLAB) < 30) {
+                      namaJalan = f.properties && f.properties.nama ? f.properties.nama : '-';
+                      found = true;
+                      break;
+                    }
+                  }
+                }
+              });
+              const jarak = haversineDistance(a, b);
+              totalJarak += jarak;
+              jalanDilalui.push({nama: namaJalan, jarak: jarak});
+            }
+            // Tampilkan di tabel
+            const tableBody = document.getElementById('jalanInfoTable');
+            tableBody.innerHTML = '';
+            const maxRows = 6;
+            jalanDilalui.slice(0, maxRows).forEach(j => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `<td>${j.nama}</td><td>${j.jarak.toFixed(1)}</td>`;
+              tableBody.appendChild(tr);
+            });
+            if (jalanDilalui.length > maxRows) {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `<td colspan='2' class='text-center text-muted'>...</td>`;
+              tableBody.appendChild(tr);
+            }
+            document.getElementById('totalJarakCell').textContent = totalJarak.toFixed(1);
+            document.getElementById('jalanInfoContainer').style.display = 'block';
+          });
       } else {
         alert("Jalur tidak ditemukan!");
+        document.getElementById('jalanInfoContainer').style.display = 'none';
       }
     }
 

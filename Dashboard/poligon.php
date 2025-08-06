@@ -70,18 +70,19 @@ $markers = $conn->query("SELECT nama, latitude, longitude FROM titik_evakuasi")-
       overflow-x: hidden;
     }
     .sidebar {
-      position: fixed;
-      top: 0; left: 0;
-      width: 250px;
+      min-width: 250px;
+      max-width: 250px;
       height: 100vh;
-      background: var(--sidebar-bg);
-      color: #fff;
+      background: var(--orange);
+      border-right: none;
+      padding: 0;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1030;
       display: flex;
       flex-direction: column;
-      z-index: 1000;
-      transition: transform .25s cubic-bezier(.4,2,.6,1);
       box-shadow: 2px 0 8px rgba(0,0,0,.07);
-      align-items: center;
     }
     .sidebar.collapsed {
       transform: translateX(-100%);
@@ -92,11 +93,12 @@ $markers = $conn->query("SELECT nama, latitude, longitude FROM titik_evakuasi")-
       gap: .5rem;
       width: 100%;
       padding: 18px 20px 14px 20px;
-      background: var(--orange);
+      background: transparent;
       font-weight: 700;
       font-size: 1.1rem;
       letter-spacing: 1px;
       border-bottom: 1px solid #fff2;
+      color: #fff;
     }
     .sidebar .brand img {
       height: 36px;
@@ -108,18 +110,20 @@ $markers = $conn->query("SELECT nama, latitude, longitude FROM titik_evakuasi")-
     }
     .sidebar .nav-links a {
       display: block;
-      color: #e5e7eb;
+      color: #fff;
       padding: 12px 24px;
       text-decoration: none;
       border-radius: 6px 0 0 6px;
       margin-bottom: 2px;
       font-size: 1rem;
       transition: background .2s;
+      font-weight: 500;
     }
     .sidebar .nav-links a.active,
     .sidebar .nav-links a:hover {
-      background-color: var(--sidebar-hover);
-      color: #fff;
+      background-color: #fff;
+      color: var(--orange);
+      font-weight: 700;
     }
     .sidebar .logout {
       margin-top: auto;
@@ -130,8 +134,17 @@ $markers = $conn->query("SELECT nama, latitude, longitude FROM titik_evakuasi")-
       width: 100%;
       display: block;
       text-align: left;
-      color: #fca5a5 !important;
+      color: #fff !important;
       font-weight: 500;
+      background: #d32f2f;
+      border-radius: 6px;
+      padding: 10px 18px;
+      margin-top: 8px;
+      transition: background .2s;
+    }
+    .sidebar .logout a:hover {
+      background: #b71c1c;
+      color: #fff !important;
     }
     .topbar {
       height: 64px;
@@ -241,19 +254,29 @@ $markers = $conn->query("SELECT nama, latitude, longitude FROM titik_evakuasi")-
   </style>
 </head>
 <body>
-<aside class="sidebar">
-  <div class="brand">
-    <img src="../assets/logo.png" alt="Logo" width="110" height="100" />
+<nav class="sidebar d-flex flex-column">
+  <div class="brand justify-content-center">
+    <img src="../assets/logo.png" alt="Logo" height="36" style="margin-right:8px;">
+    <span style="color:#fff;">Evakuasi</span>
   </div>
-  <nav class="nav-links">
-    <a href="index.php">Dashboard</a>
-    <a href="marker.php">Tambah Marker Titik</a>
-    <a href="poligon.php" class="active">Tambah Polygon Bencana</a>
-  </nav>
-  <div class="logout">
-    <a href="../Login/logout.php" class="btn btn-outline-light btn-sm">🚪 Logout</a>
+  <div class="nav-links flex-grow-1">
+    <a href="index.php" class="d-flex align-items-center gap-2 nav-link">
+      <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+    </a>
+    <a href="marker.php" class="d-flex align-items-center gap-2 nav-link">
+      <i class="bi bi-geo-alt-fill"></i> <span>Tambah Marker Titik</span>
+    </a>
+    <a href="poligon.php" class="d-flex align-items-center gap-2 nav-link active">
+      <i class="bi bi-vector-pen"></i> <span>Tambah Polygon Bencana</span>
+    </a>
   </div>
-</aside>
+  <div class="logout mt-auto mb-2">
+    <a href="../Login/logout.php" class="nav-link d-flex align-items-center gap-2">
+      <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
+    </a>
+  </div>
+</nav>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <div class="topbar">
   <button id="btnToggle" class="btn-toggle d-lg-none me-2">☰</button>
   <h5 class="mb-0">Kelola Polygon Wilayah Bencana</h5>
