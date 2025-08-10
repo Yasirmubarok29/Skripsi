@@ -22,6 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'simpan') {
     $color = $_POST['color'];
     $geojson = $_POST['geojson'];
     $status = $_POST['status'];
+    // VALIDASI: semua vertex polygon harus di dalam Cianjur
+    if (!is_polygon_in_cianjur($geojson)) {
+        echo "<script>alert('Polygon berada di luar batas administratif Kabupaten Cianjur! Silakan gambar di dalam Cianjur.');window.location='poligon.php';</script>";
+        exit;
+    }
     $stmt = $conn->prepare("INSERT INTO wilayah_bencana (nama, color, geojson, status, created_at) VALUES (?, ?, ?, ?, NOW())");
     $stmt->bind_param("ssss", $nama, $color, $geojson, $status);
     $stmt->execute();
@@ -36,6 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'update') {
     $color = $_POST['color'];
     $geojson = $_POST['geojson'];
     $status = $_POST['status'];
+    // VALIDASI: semua vertex polygon harus di dalam Cianjur
+    if (!is_polygon_in_cianjur($geojson)) {
+        echo "<script>alert('Polygon berada di luar batas administratif Kabupaten Cianjur! Silakan gambar di dalam Cianjur.');window.location='poligon.php';</script>";
+        exit;
+    }
     $stmt = $conn->prepare("UPDATE wilayah_bencana SET nama=?, color=?, geojson=?, status=? WHERE id=?");
     $stmt->bind_param("ssssi", $nama, $color, $geojson, $status, $id);
     $stmt->execute();
@@ -45,7 +55,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'update') {
 
 $polygons = $conn->query("SELECT * FROM wilayah_bencana ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
 $markers = $conn->query("SELECT nama, latitude, longitude FROM titik_evakuasi")->fetch_all(MYSQLI_ASSOC);
+// Fungsi point in polygon sederhana (untuk Polygon dan MultiPolygon)
+function pointInPolygon($point, $polygon) {
+    $x = $point[0];
+    $y = $point[1];
+    $inside = false;
+    for ($i = 0, $j = count($polygon) - 1; $i < count($polygon); $j = $i++) {
+        $xi = $polygon[$i][0]; $yi = $polygon[$i][1];
+        $xj = $polygon[$j][0]; $yj = $polygon[$j][1];
+        $intersect = (($yi > $y) != ($yj > $y)) &&
+            ($x < ($xj - $xi) * ($y - $yi) / (($yj - $yi) ?: 0.0001) + $xi);
+        if ($intersect) $inside = !$inside;
+    }
+    return $inside;
+}
+
+// Cek seluruh vertex polygon user di dalam Cianjur
+function is_polygon_in_cianjur($geojson_str) {
+    $geojson_path = __DIR__ . '/../data/batas_cianjur.geojson';
+    if (!file_exists($geojson_path)) return false;
+    $batas = json_decode(file_get_contents($geojson_path), true);
+    $geojson = json_decode($geojson_str, true);
+    if (!$geojson || !$batas) return false;
+    // Ambil semua titik polygon user
+    $coords = [];
+    if ($geojson['type'] === 'FeatureCollection') {
+        foreach ($geojson['features'] as $feat) {
+            if ($feat['geometry']['type'] === 'Polygon') {
+                foreach ($feat['geometry']['coordinates'] as $poly) {
+                    foreach ($poly as $pt) $coords[] = $pt;
+                }
+            }
+        }
+    } elseif ($geojson['type'] === 'Feature' && $geojson['geometry']['type'] === 'Polygon') {
+        foreach ($geojson['geometry']['coordinates'] as $poly) {
+            foreach ($poly as $pt) $coords[] = $pt;
+        }
+    }
+    // Cek semua titik harus di dalam polygon Cianjur
+    foreach ($coords as $pt) {
+        $in = false;
+        if ($batas['type'] === 'FeatureCollection') {
+            foreach ($batas['features'] as $f) {
+                if ($f['geometry']['type'] === 'Polygon') {
+                    foreach ($f['geometry']['coordinates'] as $bpoly) {
+                        if (pointInPolygon($pt, $bpoly)) $in = true;
+                    }
+                } elseif ($f['geometry']['type'] === 'MultiPolygon') {
+                    foreach ($f['geometry']['coordinates'] as $multi) {
+                        foreach ($multi as $bpoly) {
+                            if (pointInPolygon($pt, $bpoly)) $in = true;
+                        }
+                    }
+                }
+            }
+        }
+        if (!$in) return false; // Jika ada titik di luar batas, tidak valid
+    }
+    return true;
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -591,56 +661,39 @@ function editPolygon(data) {
   document.getElementById('color').value = color;
 }
 // Tambahkan batas administratif Cianjur (GeoJSON statis)
-fetch('../data/batas_cianjur.geojson')
-    .then(res => {
-        if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
-        return res.json();
-    })
-    .then(data => {
-        L.geoJSON(data, {
-            style: {
-                color: '#198754',
-                weight: 2,
-                fillOpacity: 0.1,
-                dashArray: '5,5'
-            }
-        }).addTo(map).bindTooltip("Wilayah Administratif Cianjur", {permanent:false, direction:'top'});
-    })
-    .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
+const boundaryLayers = [
+  {
+    url: '../data/batas_cianjur.geojson',
+    tooltip: 'Wilayah Administratif Cianjur'
+  },
+  {
+    url: '../data/batas_kecamatan.geojson',
+    tooltip: 'Wilayah Administratif Kecamatan Cianjur'
+  },
+  {
+    url: '../data/batas_kelurahan.geojson',
+    tooltip: 'Wilayah Administratif Kelurahan Cianjur'
+  }
+];
 
- fetch('../data/batas_kecamatan.geojson')
+boundaryLayers.forEach(({url, tooltip}) => {
+  fetch(url)
     .then(res => {
-        if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
-        return res.json();
+      if (!res.ok) throw new Error(`Gagal memuat file ${url}`);
+      return res.json();
     })
     .then(data => {
-        L.geoJSON(data, {
-            style: {
-                color: '#198754',
-                weight: 2,
-                fillOpacity: 0.1,
-                dashArray: '5,5'
-            }
-        }).addTo(map).bindTooltip("Wilayah Administratif Kecamatan Cianjur", {permanent:false, direction:'top'});
+      L.geoJSON(data, {
+        style: {
+          color: '#198754',
+          weight: 2,
+          fillOpacity: 0.1,
+          dashArray: '5,5'
+        }
+      }).addTo(map).bindTooltip(tooltip, {permanent: false, direction: 'top'});
     })
-    .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
-
-        fetch('../data/batas_kelurahan.geojson')
-    .then(res => {
-        if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
-        return res.json();
-    })
-    .then(data => {
-        L.geoJSON(data, {
-            style: {
-                color: '#198754',
-                weight: 2,
-                fillOpacity: 0.1,
-                dashArray: '5,5'
-            }
-        }).addTo(map).bindTooltip("Wilayah Administratif Kelurahan Cianjur", {permanent:false, direction:'top'});
-    })
-    .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
+    .catch(err => console.error(`Gagal memuat ${url}:`, err));
+});
 </script>
 </body>
 </html>

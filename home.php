@@ -313,6 +313,7 @@ $polygon_json = json_encode([
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
   <script>
+  
     // Blur background saat modal login aktif
     const loginModal = document.getElementById('loginModal');
     const mainContent = document.querySelector('.main-content');

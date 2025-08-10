@@ -528,56 +528,39 @@ function esc($s) { return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); }
   });
 
   // Load batas Cianjur GeoJSON
-  fetch('../data/batas_cianjur.geojson')
-    .then(res => {
-        if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
-        return res.json();
-    })
-    .then(data => {
-        L.geoJSON(data, {
-            style: {
-                color: '#198754',
-                weight: 2,
-                fillOpacity: 0.1,
-                dashArray: '5,5'
-            }
-        }).addTo(map).bindTooltip("Wilayah Administratif Cianjur", {permanent:false, direction:'top'});
-    })
-    .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
+const boundaryLayers = [
+  {
+    url: '../data/batas_cianjur.geojson',
+    tooltip: 'Wilayah Administratif Cianjur'
+  },
+  {
+    url: '../data/batas_kecamatan.geojson',
+    tooltip: 'Wilayah Administratif Kecamatan Cianjur'
+  },
+  {
+    url: '../data/batas_kelurahan.geojson',
+    tooltip: 'Wilayah Administratif Kelurahan Cianjur'
+  }
+];
 
-     fetch('../data/batas_kecamatan.geojson')
+boundaryLayers.forEach(({url, tooltip}) => {
+  fetch(url)
     .then(res => {
-        if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
-        return res.json();
+      if (!res.ok) throw new Error(`Gagal memuat file ${url}`);
+      return res.json();
     })
     .then(data => {
-        L.geoJSON(data, {
-            style: {
-                color: '#198754',
-                weight: 2,
-                fillOpacity: 0.1,
-                dashArray: '5,5'
-            }
-        }).addTo(map).bindTooltip("Wilayah Administratif Kecamatan Cianjur", {permanent:false, direction:'top'});
+      L.geoJSON(data, {
+        style: {
+          color: '#198754',
+          weight: 2,
+          fillOpacity: 0.1,
+          dashArray: '5,5'
+        }
+      }).addTo(map).bindTooltip(tooltip, {permanent: false, direction: 'top'});
     })
-    .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
-
-    fetch('../data/batas_kelurahan.geojson')
-    .then(res => {
-        if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
-        return res.json();
-    })
-    .then(data => {
-        L.geoJSON(data, {
-            style: {
-                color: '#198754',
-                weight: 2,
-                fillOpacity: 0.1,
-                dashArray: '5,5'
-            }
-        }).addTo(map).bindTooltip("Wilayah Administratif Kelurahan Cianjur", {permanent:false, direction:'top'});
-    })
-    .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
+    .catch(err => console.error(`Gagal memuat ${url}:`, err));
+});
 </script>
 </body>
 </html>
