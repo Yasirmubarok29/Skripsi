@@ -60,92 +60,182 @@ function esc($s) {
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
-    #map {
-      width: 100%;
-      height: 48vh;
-      min-height: 320px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.10);
-      border: 1px solid #eee;
-      background: #eaeaea;
-      z-index: 1;
-    }
-    .sidebar .sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 28px 0 18px 0;
-  background: linear-gradient(90deg, #ff6f00 0%, #ff9800 100%);
-  border-bottom: 1px solid #ffe0b2;
-}
-.sidebar .sidebar-header img {
-  height: 64px;
-  width: 64px;
-  object-fit: contain;
-  margin: 0 auto;
-  display: block;
-}
-.sidebar .nav {
-  margin-top: 0.5rem;
-}
-.sidebar .nav-link {
-  color: #333;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  padding: 12px 24px;
-  border-radius: 0 20px 20px 0;
-  margin-bottom: 2px;
-  transition: background .2s, color .2s;
-  font-size: 1rem;
-}
-.sidebar .nav-link.active, .sidebar .nav-link:hover {
-  background: #ffe0b2;
-  color: #ff6f00;
-}
-.sidebar .logout {
-  padding: 16px 20px 8px 20px;
-  border-top: 1px solid #ffe0b2;
-}
-.sidebar .logout .nav-link {
-  color: #d32f2f;
-  font-weight: 600;
-  background: none;
-  border-radius: 0 20px 20px 0;
-}
-.sidebar .logout .nav-link:hover {
-  background: #ffe0b2;
-  color: #b71c1c;
-}
     body {
-      background: #f5f5f5;
-      font-family: 'Segoe UI', sans-serif;
+      background: #eef0f3;
+      font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
       overflow-x: hidden;
     }
     .sidebar {
-      min-width: 250px;
-      max-width: 250px;
+      min-width: 260px;
+      max-width: 260px;
       height: 100vh;
-      background: #fff;
-      border-right: 1px solid #eee;
+      background: linear-gradient(135deg, #343a40 0%, #212529 100%);
       padding: 0;
       position: fixed;
       top: 0;
       left: 0;
-      z-index: 1030;
+      z-index: 1040;
       display: flex;
       flex-direction: column;
-      box-shadow: 2px 0 8px rgba(0,0,0,.07);
+      box-shadow: 2px 0 16px rgba(34,34,34,0.08);
+      color: #fff;
     }
-    .content-wrapper {
-      margin-left: 250px;
-      transition: margin-left .25s cubic-bezier(.4,2,.6,1);
-      min-height: 100vh;
-      background: #f5f5f5;
+    .sidebar-header {
+      padding: 28px 0 22px 0;
+      text-align: center;
+      background: linear-gradient(90deg, #198754 0%, #157347 100%);
+      border-bottom: 1px solid #dee2e6;
     }
-    .content-wrapper.full {
-      margin-left: 0;
+    .sidebar-header img {
+      height: 60px;
+      object-fit: contain;
+      margin-bottom: 10px;
+      border-radius: 14px;
+      box-shadow: 0 2px 14px 2px #15734750;
+    }
+    .sidebar-header h5 {
+      font-weight: 700;
+      font-size: 1.18rem;
+      margin-bottom: 0;
+      letter-spacing: 1px;
+      color: #e9ecef;
+      text-shadow: 0 1px 4px #19875433;
+    }
+    .nav-section {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0 8px 0;
+      gap: 2px;
+    }
+    .sidebar .nav-link {
+      color: #e9ecef;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+      padding: 10px 32px;
+      font-size: 1.04rem;
+      border-radius: 0 22px 22px 0;
+      margin-bottom: 2px;
+      position: relative;
+      background: none;
+      transition: background .18s, color .18s;
+      text-shadow: 0 1px 6px #21252910;
+      border: none;
+    }
+    .sidebar .nav-link.active, .sidebar .nav-link:hover {
+      background: linear-gradient(90deg, #198754 22%, #157347 100%);
+      color: #fff;
+      box-shadow: 0 2px 12px 0 #19875430;
+      font-weight: 700;
+    }
+    .sidebar .nav-link.active:before, .sidebar .nav-link:hover:before {
+      content: '';
+      position: absolute;
+      left: 17px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 20px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #198754 40%, #157347 100%);
+      box-shadow: 0 2px 6px #15734720;
+    }
+    .sidebar .nav-link .bi {
+      font-size: 1.25em;
+      filter: drop-shadow(0 1px 3px #e9ecefcc);
+    }
+    .sidebar .logout {
+      padding: 16px 32px 20px 32px;
+      border-top: 1px solid #dee2e6;
+      margin-top: auto;
+    }
+    .sidebar .logout .nav-link {
+      color: #fff;
+      background: #dc3545;
+      font-weight: 600;
+      border-radius: 0 22px 22px 0;
+      text-shadow: 0 1px 6px #dc354520;
+      transition: background .16s, color .16s;
+      border: none;
+    }
+    .sidebar .logout .nav-link:hover {
+      background: #b02a37;
+      color: #fff;
+      text-shadow: none;
+    }
+    .sidebar .admin-info {
+      padding: 13px 32px 11px 32px;
+      font-size: 0.97em;
+      color: #ced4da;
+      border-bottom: 1px solid #dee2e6;
+      text-align: left;
+      background: linear-gradient(90deg, #15734710 0%, #198754 100%);
+      margin-bottom: 0;
+    }
+    .sidebar .admin-info i {
+      font-size: 1.15em;
+      margin-right: 8px;
+      color: #e9ecef;
+    }
+    /* TOPBAR - Bootstrap style */
+    .topbar-modern {
+      background: linear-gradient(90deg,#f8f9fa 0%,#dee2e6 100%);
+      color: #212529;
+      border-radius: 0 0 14px 0;
+      min-height: 58px;
+      box-shadow: 0 1px 8px 0 #21252910;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px 0 290px;
+      position: sticky;
+      top: 0;
+      z-index: 101;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .topbar-modern .left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .topbar-modern .title {
+      font-weight: 700;
+      font-size: 1.13rem;
+      letter-spacing: 1px;
+      color: #0d6efd;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .topbar-modern .version {
+      background: #e9ecef;
+      color: #157347;
+      font-size: 0.83rem;
+      font-weight: 600;
+      border-radius: 12px;
+      padding: 2px 10px;
+      margin-left: 8px;
+      box-shadow: 0 1px 5px #15734710;
+    }
+    .topbar-modern .user-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8f9fa;
+      color: #157347;
+      border-radius: 12px;
+      padding: 3px 16px;
+      font-size: 1rem;
+      font-weight: 600;
+      box-shadow: 0 2px 10px #15734710;
+      border: 1px solid #dee2e6;
+    }
+    .topbar-modern .user-box .bi {
+      font-size: 1.07em;
+      margin-right: 4px;
     }
     @media (max-width: 991.98px) {
       .content-wrapper {
@@ -155,6 +245,170 @@ function esc($s) {
         min-width: 210px;
         max-width: 210px;
       }
+      .topbar-modern {
+        padding: 0 8px 0 0;
+        border-radius: 0 0 8px 0;
+      }
+      .topbar-modern .title {
+        font-size: 1.01rem;
+      }
+    }
+    @media (max-width: 575.98px) {
+      .sidebar {
+        min-width: 100vw;
+        max-width: 100vw;
+        position: relative;
+        height: auto;
+      }
+      .content-wrapper {
+        margin-left: 0;
+      }
+      .topbar-modern {
+        padding: 0 4px 0 0;
+        border-radius: 0 0 8px 0;
+        min-height: 46px;
+      }
+      .topbar-modern .title {
+        font-size: 0.94rem;
+      }
+      .topbar-modern .user-box {
+        font-size: 0.89em;
+        padding: 2px 2px;
+      }
+    }
+    .content-wrapper {
+      margin-left: 260px;
+      padding: 32px 24px 24px 24px;
+      min-height: 100vh;
+      background: #eef0f3;
+      transition: margin-left .25s cubic-bezier(.4,2,.6,1);
+    }
+    .content-wrapper.full {
+      margin-left: 0;
+    }
+    .card {
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(33,37,41,.08);
+      background: #fff;
+      border: none;
+      transition: box-shadow .2s;
+    }
+    .card-header-modern {
+      background: linear-gradient(90deg, #0d6efd 0%, #157347 100%);
+      color: #fff;
+      border-radius: 16px 16px 0 0;
+      padding: 18px 24px 12px 24px;
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 2px 8px rgba(33,37,41,.07);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #map {
+      width: 100%;
+      height: 48vh;
+      min-height: 320px;
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(33,37,41,.07);
+      border: 1px solid #dee2e6;
+      margin-bottom: 18px;
+      background: linear-gradient(90deg, #e9ecef 0%, #f8f9fa 100%);
+    }
+    .card-form-marker {
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(33,37,41,.08);
+      background: #fff;
+      transition: box-shadow .2s;
+      overflow: hidden;
+    }
+    .card-header-marker {
+      background: linear-gradient(90deg,#0d6efd 0%,#157347 100%);
+      color: #fff;
+      border-radius: 16px 16px 0 0;
+      padding: 18px 24px 12px 24px;
+      font-size: 1.10rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      box-shadow: 0 2px 8px rgba(33,37,41,.07);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-form-marker .form-label {
+      font-weight: 600;
+      color: #157347;
+      font-size: 1.01em;
+      margin-bottom: 5px;
+    }
+    .card-form-marker .form-control,
+    .card-form-marker textarea {
+      border-radius: 12px;
+      border: 1px solid #dee2e6;
+      padding: 10px 14px;
+      font-size: 1em;
+      box-shadow: 0 2px 8px #dee2e670;
+      margin-bottom: 10px;
+      background: #f8f9fa;
+      color: #333;
+    }
+    .card-form-marker textarea {
+      min-height: 60px;
+    }
+    .card-form-marker .btn-primary {
+      background: linear-gradient(90deg,#0d6efd 60%,#157347 100%);
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1em;
+      box-shadow: 0 2px 8px #15734740;
+      margin-top: 10px;
+    }
+    .card-form-marker .btn-primary:hover {
+      background: linear-gradient(90deg,#157347 60%,#0d6efd 100%);
+      color: #fffbe7;
+    }
+    .panel-shadow {
+      box-shadow: 0 2px 18px rgba(33,37,41,.09);
+      border-radius: 14px;
+      background: #fff;
+      margin-bottom: 16px;
+    }
+    .btn-fab {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: linear-gradient(90deg, #0d6efd 60%, #157347 100%);
+      color: #fff;
+      font-size: 2.3em;
+      font-weight: 900;
+      box-shadow: 0 2px 18px #15734769;
+      border: none;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .2s;
+    }
+    .btn-fab:hover {
+      background: linear-gradient(90deg, #157347 60%, #0d6efd 100%);
+      color: #fffbe7;
+    }
+    .table thead {
+      background: #f8f9fa;
+    }
+    .table-hover tbody tr:hover {
+      background-color: #e9ecef !important;
+      transition: background .2s;
+    }
+    .table-striped tbody tr:nth-of-type(odd) {
+      background-color: #f6f6f6;
     }
   </style>
 </head>
@@ -162,83 +416,98 @@ function esc($s) {
 
 <!-- SIDEBAR -->
 <nav id="sidebar" class="sidebar d-flex flex-column">
-  <div class="sidebar-header justify-content-center">
-    <img src="../assets/logo.png" alt="Logo" width="100" height="100" style="display:block; margin:0 auto;">
+  <div class="sidebar-header">
+    <img src="../assets/logo1.png" alt="Logo1 WebGIS">
   </div>
-  <ul class="nav nav-pills flex-column mb-auto mt-3" style="gap:2px;">
-    <li class="nav-item">
-      <a href="index.php" class="nav-link d-flex align-items-center gap-2">
-        <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
-      </a>
-    </li>
-    <li>
-      <a href="marker.php" class="nav-link active d-flex align-items-center gap-2">
-        <i class="bi bi-geo-alt-fill"></i> <span>Tambah Marker Titik</span>
-      </a>
-    </li>
-    <li>
-      <a href="poligon.php" class="nav-link d-flex align-items-center gap-2">
-        <i class="bi bi-vector-pen"></i> <span>Tambah Polygon Bencana</span>
-      </a>
-    </li>
-  </ul>
-  <div class="logout mt-auto mb-2">
-    <a href="../Login/logout.php" class="nav-link d-flex align-items-center gap-2">
-      <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
+  <div class="admin-info mb-0">
+    <i class="bi bi-person-circle"></i>
+    <span>Selamat datang, <b><?= htmlspecialchars($_SESSION['admin'] ?? 'Admin') ?></b></span>
+  </div>
+  <div class="nav-section">
+    <a href="index.php" class="nav-link">
+      <i class="bi bi-speedometer2"></i> Dashboard
+    </a>
+    <a href="marker.php" class="nav-link active">
+      <i class="bi bi-geo-alt-fill"></i> Titik Evakuasi
+    </a>
+    <a href="poligon.php" class="nav-link">
+      <i class="bi bi-vector-pen"></i> Wilayah Bencana
+    </a>
+  </div>
+  <div class="logout mt-auto">
+    <a href="../Login/logout.php" class="nav-link">
+      <i class="bi bi-box-arrow-right"></i> Logout
     </a>
   </div>
 </nav>
 
+<!-- TOPBAR MODERN -->
+<div class="topbar-modern">
+  <div class="left">
+    <span class="title"><i class="bi bi-geo-alt-fill"></i> Marker Titik Evakuasi <span class="version">v1.0</span></span>
+  </div>
+  <div class="user-box">
+    <i class="bi bi-person-circle"></i>
+    <?= htmlspecialchars($_SESSION['admin'] ?? 'Admin') ?>
+  </div>
+</div>
+
 <!-- MAIN CONTENT -->
 <div id="contentWrapper" class="content-wrapper">
-    <?php if ($error): ?><div class="alert alert-danger"><?= esc($error) ?></div><?php endif; ?>
-    <?php if ($success): ?><div class="alert alert-success"><?= esc($success) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="alert alert-danger mt-3"><?= esc($error) ?></div><?php endif; ?>
+    <?php if ($success): ?><div class="alert alert-success mt-3"><?= esc($success) ?></div><?php endif; ?>
 
-    <div class="row g-4">
+    <div class="row g-4 mb-2">
         <div class="col-lg-8">
-            <div class="card shadow-sm h-100 border-0 bg-light">
-                <div class="card-header bg-warning bg-gradient text-dark d-flex justify-content-between align-items-center border-0" style="border-radius:12px 12px 0 0; font-weight:600;">
-                    <span><i class="bi bi-geo-alt-fill me-1"></i> Pilih lokasi pada peta atau isi koordinat manual</span>
-                    <button class="btn btn-sm btn-outline-dark bg-white border-0" type="button" onclick="map.setView([-6.82, 107.14], 10)"><i class="bi bi-arrow-clockwise"></i> Reset Peta</button>
+            <div class="panel-shadow mb-3">
+                <div class="card-header-modern"><i class="bi bi-geo-alt-fill"></i> Pilih lokasi pada peta atau isi koordinat manual
+                    <button class="btn btn-sm btn-outline-dark float-end" type="button" onclick="map.setView([-6.82, 107.14], 10)"><i class="bi bi-arrow-clockwise"></i> Reset Peta</button>
                 </div>
                 <div class="p-3 bg-white rounded-bottom"><div id="map"></div></div>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card shadow-sm h-100 border-0 bg-light">
-                <div class="card-header bg-primary bg-gradient text-white border-0" style="border-radius:12px 12px 0 0; font-weight:600;">
-                  <i class="bi bi-plus-circle me-1"></i> Form Tambah Titik
+            <div class="card-form-marker">
+                <div class="card-header-marker">
+                  <i class="bi bi-plus-circle"></i> Form Tambah Titik Evakuasi
                 </div>
-                <div class="p-3 bg-white rounded-bottom">
+                <div class="p-4">
                 <form method="post" autocomplete="off">
                     <input type="hidden" name="action" value="create">
-                    <div class="mb-3">
-                        <label class="form-label">Nama Titik/Posko</label>
-                        <input type="text" name="nama" class="form-control" required placeholder="Contoh: Posko Utama">
+                    <div class="mb-2">
+                        <label class="form-label" for="nama">Nama Titik/Posko</label>
+                        <input type="text" name="nama" id="nama" class="form-control" required placeholder="Contoh: Posko Utama">
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Latitude</label>
+                    <div class="row mb-2">
+                      <div class="col-md-6">
+                        <label class="form-label" for="lat">Latitude</label>
                         <input type="text" name="latitude" id="lat" class="form-control" required placeholder="-6.82">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Longitude</label>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label" for="lng">Longitude</label>
                         <input type="text" name="longitude" id="lng" class="form-control" required placeholder="107.14">
+                      </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Keterangan</label>
-                        <textarea name="keterangan" class="form-control" placeholder="Keterangan tambahan..."></textarea>
+                    <div class="mb-2">
+                        <label class="form-label" for="keterangan">Keterangan</label>
+                        <textarea name="keterangan" id="keterangan" class="form-control" placeholder="Keterangan tambahan..."></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Simpan Titik</button>
+                    <div class="d-grid gap-2 mt-2">
+                      <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Simpan Titik</button>
+                    </div>
                 </form>
+                <div class="mt-3 small text-muted">
+                  <i class="bi bi-info-circle"></i> Klik pada peta untuk mengisi otomatis koordinat Latitude & Longitude.
+                </div>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="card mt-4 shadow-sm">
-        <div class="card-header bg-success bg-gradient text-white d-flex justify-content-between align-items-center border-0" style="border-radius:12px 12px 0 0; font-weight:600;">
-            <span><i class="bi bi-list-check me-1"></i> Daftar Semua Titik Evakuasi</span>
-            <input type="text" id="searchTable" class="form-control form-control-sm w-auto border-0" placeholder="Cari nama..." style="min-width:180px;">
+        <div class="card-header-modern d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-list-check"></i> Daftar Semua Titik Evakuasi</span>
+            <input type="text" id="searchTable" class="form-control form-control-sm w-auto" placeholder="Cari nama..." style="min-width:180px;">
         </div>
         <div class="p-3 bg-white rounded-bottom">
         <div class="table-responsive">
@@ -264,7 +533,7 @@ function esc($s) {
                     <td><?= esc($row['keterangan']) ? esc($row['keterangan']) : '<span class="text-muted fst-italic">-</span>' ?></td>
                     <td><span class="badge rounded-pill bg-secondary-subtle text-dark small px-2 py-1"><?= esc($row['waktu_dibuat']) ?></span></td>
                     <td class="text-center">
-                      <a href="?delete=<?= $row['id'] ?>" class="btn btn-sm btn-outline-danger rounded-circle" title="Hapus" onclick="return confirm('Hapus titik ini?')">
+                      <a href="#" class="btn btn-sm btn-outline-danger rounded-circle btn-delete" data-id="<?= $row['id'] ?>" title="Hapus">
                         <i class="bi bi-trash"></i>
                       </a>
                     </td>
@@ -279,7 +548,28 @@ function esc($s) {
     </div>
 
     <!-- Floating Action Button (FAB) for quick add -->
-    <button class="btn-fab d-lg-none" title="Tambah Titik" onclick="window.scrollTo({top:0,behavior:'smooth'})">+</button>
+    <button class="btn-fab d-lg-none" title="Tambah Titik" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="bi bi-plus-lg"></i></button>
+
+    <!-- Modal Konfirmasi Hapus -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title" id="confirmDeleteLabel"><i class="bi bi-exclamation-triangle"></i> Konfirmasi Hapus</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+          </div>
+          <div class="modal-body">
+            <p>Apakah Anda yakin ingin menghapus titik ini?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+            <a href="#" id="btnDeleteConfirm" class="btn btn-danger">Hapus</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
     // Sidebar toggle (mobile)
@@ -297,12 +587,35 @@ function esc($s) {
             }
         });
     }
+
+    // Modal konfirmasi hapus
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.btn-delete').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          var id = this.getAttribute('data-id');
+          var deleteUrl = '?delete=' + id;
+          document.getElementById('btnDeleteConfirm').setAttribute('href', deleteUrl);
+          var modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+          modal.show();
+        });
+      });
+    });
+
+    // Interaktif: filter tabel
+    document.getElementById('searchTable').addEventListener('input', function() {
+        const val = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#titikTable tbody tr');
+        rows.forEach(row => {
+            const nama = row.children[1]?.textContent.toLowerCase() || '';
+            row.style.display = nama.includes(val) ? '' : 'none';
+        });
+    });
     </script>
+
 </div>
 
-<!-- LEAFLET LIBRARY -->
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-
 <script>
 // Inisialisasi peta hanya sekali
 const map = L.map('map').setView([-6.82, 107.14], 10);
@@ -353,8 +666,9 @@ map.on('click', function(e) {
         .bindTooltip(`Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`, {permanent:false, direction:'top'}).openTooltip();
 });
 
+
 // Tambahkan batas administratif Cianjur (GeoJSON statis)
-fetch('../assets/cianjur.geojson')
+fetch('../data/batas_cianjur.geojson')
     .then(res => {
         if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
         return res.json();
@@ -362,7 +676,7 @@ fetch('../assets/cianjur.geojson')
     .then(data => {
         L.geoJSON(data, {
             style: {
-                color: '#0000ff',
+                color: '#198754',
                 weight: 2,
                 fillOpacity: 0.1,
                 dashArray: '5,5'
@@ -371,16 +685,39 @@ fetch('../assets/cianjur.geojson')
     })
     .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
 
-// Interaktif: filter tabel
-document.getElementById('searchTable').addEventListener('input', function() {
-    const val = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#titikTable tbody tr');
-    rows.forEach(row => {
-        const nama = row.children[1]?.textContent.toLowerCase() || '';
-        row.style.display = nama.includes(val) ? '' : 'none';
-    });
-});
-</script>
+ fetch('../data/batas_kecamatan.geojson')
+    .then(res => {
+        if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
+        return res.json();
+    })
+    .then(data => {
+        L.geoJSON(data, {
+            style: {
+                color: '#198754',
+                weight: 2,
+                fillOpacity: 0.1,
+                dashArray: '5,5'
+            }
+        }).addTo(map).bindTooltip("Wilayah Administratif Kecamatan Cianjur", {permanent:false, direction:'top'});
+    })
+    .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
 
+    fetch('../data/batas_kelurahan.geojson')
+    .then(res => {
+        if (!res.ok) throw new Error("Gagal memuat file Cianjur.geojson");
+        return res.json();
+    })
+    .then(data => {
+        L.geoJSON(data, {
+            style: {
+                color: '#198754',
+                weight: 2,
+                fillOpacity: 0.1,
+                dashArray: '5,5'
+            }
+        }).addTo(map).bindTooltip("Wilayah Administratif Kelurahan Cianjur", {permanent:false, direction:'top'});
+    })
+    .catch(err => console.error("Gagal memuat Cianjur.geojson:", err));
+</script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 <?php
 $host = 'localhost';
 $user = 'root';
-$pass = ''; // kosong jika default XAMPP
+$pass = '';
 $dbname = 'evakuasi_db';
 
 $conn = new mysqli($host, $user, $pass, $dbname);

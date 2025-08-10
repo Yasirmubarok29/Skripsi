@@ -1,155 +1,231 @@
 <?php
 session_start();
 require 'conection/db.php';
-
-// Ambil titik evakuasi
 $titikEvakuasi = [];
 $res1 = $conn->query("SELECT id, nama, latitude, longitude FROM titik_evakuasi");
 while ($r = $res1->fetch_assoc()) {
-  $titikEvakuasi[] = [
-    'lat' => (float)$r['latitude'],
-    'lng' => (float)$r['longitude'],
-    'nama' => $r['nama']
-  ];
+    if (!empty($r['latitude']) && !empty($r['longitude']) && is_numeric($r['latitude']) && is_numeric($r['longitude'])) {
+        $titikEvakuasi[] = [
+            'lat' => (float)$r['latitude'],
+            'lng' => (float)$r['longitude'],
+            'nama' => $r['nama']
+        ];
+    }
 }
 $marker_json = json_encode($titikEvakuasi);
 
-// Ambil polygon wilayah bencana
 $polygonFeatures = [];
 $res2 = $conn->query("SELECT geojson, color FROM wilayah_bencana");
 while ($r = $res2->fetch_assoc()) {
-  $geojson = json_decode($r['geojson'], true);
-  $color = $r['color'];
-  if ($geojson && isset($geojson['features'])) {
-    foreach ($geojson['features'] as &$feature) {
-      $feature['properties']['color'] = $color;
+    $geojson = json_decode($r['geojson'], true);
+    $color = $r['color'];
+    if ($geojson && isset($geojson['features'])) {
+        foreach ($geojson['features'] as &$feature) {
+            $feature['properties']['color'] = $color;
+        }
+        $polygonFeatures = array_merge($polygonFeatures, $geojson['features']);
     }
-    $polygonFeatures = array_merge($polygonFeatures, $geojson['features']);
-  }
 }
 $polygon_json = json_encode([
-  "type" => "FeatureCollection",
-  "features" => $polygonFeatures
+    "type" => "FeatureCollection",
+    "features" => $polygonFeatures
 ]);
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
   <meta charset="utf-8" />
   <title>Evakuasi A*</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Bootstrap, Leaflet, dan Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-    <style>
-      html, body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-        background: #f5f5f5;
-      }
-      body {
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-      }
-      .main-content {
-        flex: 1;
-        display: flex;
-        flex-direction: row;
-        min-height: 0;
-      }
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+    }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      min-height: 0;
+      gap: 0;
+    }
+    .sidebar {
+      width: 300px;
+      background: linear-gradient(135deg, #f57c00 60%, #ff9800 100%);
+      color: white;
+      padding: 32px 24px 24px 24px;
+      flex-shrink: 0;
+      box-shadow: 2px 0 16px 0 rgba(0,0,0,0.08);
+      border-top-right-radius: 24px;
+      border-bottom-right-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      z-index: 10;
+    }
+    .sidebar h4 {
+      font-weight: bold;
+      margin-bottom: 24px;
+      letter-spacing: 1px;
+    }
+    .btn-evakuasi {
+      background: linear-gradient(90deg, #ff9800 60%, #f57c00 100%);
+      color: #fff;
+      font-weight: bold;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 24px;
+      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.10);
+      padding: 12px 32px;
+      margin-bottom: 16px;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn-evakuasi:hover {
+      background: linear-gradient(90deg, #f57c00 60%, #ff9800 100%);
+      box-shadow: 0 4px 16px 0 rgba(0,0,0,0.18);
+    }
+    .sidebar .info {
+      margin-top: 32px;
+      font-size: 0.98rem;
+      background: #fffbe7;
+      color: #7a4f01;
+      border-radius: 12px;
+      padding: 18px 18px 12px 18px;
+      box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+      border: 1px solid #ffe0b2;
+    }
+    #map {
+      flex: 1;
+      height: 80vh;
+      min-height: 300px;
+      border-radius: 24px;
+      margin: 16px 16px 16px 0;
+      box-shadow: 0 2px 16px 0 rgba(0,0,0,0.10);
+      position: relative;
+    }
+    .footer {
+      background: #fff3e0;
+      color: #f57c00;
+      text-align: center;
+      padding: 10px 0 6px 0;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      border-top: 1px solid #ffe0b2;
+    }
+    #jalanInfoContainer {
+      display:none;
+      position:absolute;
+      top:24px; right:32px;
+      z-index:1050;
+      min-width:260px; max-width:350px; width:auto;
+      box-shadow:0 4px 24px 0 rgba(0,0,0,0.13);
+      transition:all 0.2s;
+    }
+
+    /* Responsive styles */
+    @media (max-width: 1200px) {
       .sidebar {
-        width: 300px;
-        background: linear-gradient(135deg, #f57c00 60%, #ff9800 100%);
-        color: white;
-        padding: 32px 24px 24px 24px;
-        flex-shrink: 0;
-        box-shadow: 2px 0 16px 0 rgba(0,0,0,0.08);
-        border-top-right-radius: 24px;
-        border-bottom-right-radius: 24px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        z-index: 10;
-      }
-      .sidebar h4 {
-        font-weight: bold;
-        margin-bottom: 24px;
-        letter-spacing: 1px;
-      }
-      .btn-evakuasi {
-        background: linear-gradient(90deg, #ff9800 60%, #f57c00 100%);
-        color: #fff;
-        font-weight: bold;
-        font-size: 1.1rem;
-        border: none;
-        border-radius: 24px;
-        box-shadow: 0 2px 8px 0 rgba(0,0,0,0.10);
-        padding: 12px 32px;
-        margin-bottom: 16px;
-        transition: background 0.2s, box-shadow 0.2s;
-      }
-      .btn-evakuasi:hover {
-        background: linear-gradient(90deg, #f57c00 60%, #ff9800 100%);
-        box-shadow: 0 4px 16px 0 rgba(0,0,0,0.18);
-      }
-      .sidebar .info {
-        margin-top: 32px;
-        font-size: 0.98rem;
-        background: #fffbe7;
-        color: #7a4f01;
-        border-radius: 12px;
-        padding: 18px 18px 12px 18px;
-        box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
-        border: 1px solid #ffe0b2;
+        width: 240px;
+        padding: 24px 12px 16px 12px;
       }
       #map {
-        flex: 1;
-        height: 100vh;
-        border-radius: 24px;
-        margin: 16px 16px 16px 0;
-        box-shadow: 0 2px 16px 0 rgba(0,0,0,0.10);
+        margin: 12px 8px 12px 0;
       }
-      .footer {
-        background: #fff3e0;
-        color: #f57c00;
-        text-align: center;
-        padding: 10px 0 6px 0;
-        font-size: 1rem;
-        letter-spacing: 1px;
-        border-top: 1px solid #ffe0b2;
+    }
+    @media (max-width: 900px) {
+      .main-content {
+        flex-direction: column;
       }
-      @media (max-width: 900px) {
-        .sidebar { width: 100%; border-radius: 0; box-shadow: none; }
-        .main-content { flex-direction: column; }
-        #map { margin: 0; border-radius: 0; }
+      .sidebar {
+        width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        position: relative;
+        z-index: 2;
+        padding: 20px 10px 10px 10px;
       }
-    </style>
+      #map {
+        margin: 0;
+        border-radius: 0;
+        width: 100vw;
+        min-height: 40vh;
+        height: 40vh;
+        position: relative;
+        z-index: 1;
+      }
+      #jalanInfoContainer {
+        right: 8px !important;
+        left: auto !important;
+        top: 8px !important;
+        max-width: 98vw;
+      }
+    }
+    @media (max-width: 600px) {
+      .sidebar {
+        font-size: 0.96rem;
+        padding: 12px 5px 5px 5px;
+      }
+      #map {
+        min-height: 38vh;
+        height: 38vh;
+      }
+      #jalanInfoContainer {
+        top: 5px !important;
+        right: 2px !important;
+        max-width: 99vw;
+        font-size: 0.92em;
+      }
+      .card-header, .card-body, .table {
+        font-size: 0.95em;
+      }
+    }
+    @media (max-width: 400px) {
+      .sidebar h4, .footer {
+        font-size: 0.93rem;
+      }
+      .btn-evakuasi {
+        font-size: 0.98rem;
+        padding: 8px 18px;
+      }
+      #map {
+        min-height: 30vh;
+        height: 30vh;
+      }
+    }
+  </style>
 </head>
-
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-lg" style="background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%); min-height:70px;">
     <div class="container-fluid px-4">
       <a class="navbar-brand d-flex align-items-center gap-2" href="#" style="font-weight:700; font-size:1.3rem; letter-spacing:1px;">
-        <img src="assets/logo.png" alt="Evastar Logo" style="width:48px;height:48px;object-fit:contain;">
-        <span class="d-none d-md-inline" style="color:#fff;">Evakuasi Cerdas Cianjur</span>
+        <img src="assets/logo1.png" alt="Evastar Logo1" style="width:150px;object-fit:contain;">
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topbarNav" aria-controls="topbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse justify-content-end" id="topbarNav">
         <ul class="navbar-nav mb-2 mb-lg-0 align-items-center gap-2">
-          <li class="nav-item">
-          
-            </button>
-          </li>
+          <li class="nav-item"></li>
         </ul>
       </div>
     </div>
   </nav>
+
   <div class="main-content">
     <div class="sidebar">
       <h4 class="d-flex align-items-center gap-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Evakuasi Bencana</h4>
@@ -175,16 +251,16 @@ $polygon_json = json_encode([
         </div>
       </div>
       <button id="loginBtn" type="button" class="btn btn-outline-warning w-100 d-flex align-items-center justify-content-center gap-2" style="font-weight:bold; border-radius:20px;" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="bi bi-person-circle"></i> Login</button>
-
-      <!-- Tabel info jalan yang dilalui -->
-      <div id="jalanInfoContainer" class="mt-3" style="display:none;">
+    </div>
+    <div id="map">
+      <div id="jalanInfoContainer">
         <div class="card shadow-sm" style="border-radius:12px;">
           <div class="card-header py-2 px-3" style="background:linear-gradient(90deg,#ff9800 0%,#f57c00 100%);color:#fff;font-weight:600;font-size:1rem;border-radius:12px 12px 0 0;">Jalan yang Dilalui</div>
           <div class="card-body p-2">
             <div class="table-responsive">
               <table class="table table-sm table-bordered mb-0" style="font-size:0.95em;">
                 <thead class="table-light">
-                  <tr><th>Nama Jalan</th><th>Jarak (m)</th></tr>
+                  <tr><th>Arah Jalan</th><th>Jarak (m)</th></tr>
                 </thead>
                 <tbody id="jalanInfoTable"></tbody>
                 <tfoot>
@@ -195,29 +271,9 @@ $polygon_json = json_encode([
           </div>
         </div>
       </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    // Blur background saat modal login aktif
-    const loginModal = document.getElementById('loginModal');
-    const mainContent = document.querySelector('.main-content');
-    const footer = document.querySelector('.footer');
-    if (loginModal) {
-      loginModal.addEventListener('show.bs.modal', function() {
-        mainContent.style.filter = 'blur(6px)';
-        footer.style.filter = 'blur(6px)';
-      });
-      loginModal.addEventListener('hidden.bs.modal', function() {
-        mainContent.style.filter = '';
-        footer.style.filter = '';
-      });
-    }
-  </script>
     </div>
-    <div id="map"></div>
   </div>
 
-  <!-- Modal Login (pindahkan ke luar .sidebar dan .main-content) -->
   <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -228,7 +284,7 @@ $polygon_json = json_encode([
         <div class="modal-body">
           <div class="login-card p-0 m-0 border-0 shadow-none" style="background:transparent;box-shadow:none;max-width:100%;">
             <div class="text-center mb-3">
-              <img src="assets/logo.png" alt="Logo" class="login-logo mb-2" style="width:100px;height:100px;object-fit:contain;">
+              <img src="assets/logo2.png" alt="Logo2" class="login-logo2 mb-2" style="width:100px;object-fit:contain;">
               <h4 class="mb-2 text-primary">Login Admin</h4>
             </div>
             <div id="loginError" style="display:none;" class="alert alert-danger py-2">Username atau Password salah!</div>
@@ -245,8 +301,33 @@ $polygon_json = json_encode([
             </form>
             <footer class="mt-4 text-muted text-center" style="font-size: 13px;">© 2025 WebGIS Evakuasi – Kabupaten Cianjur</footer>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    &copy; 2025 WebGis Evakuasi &mdash; Kabupaten Cianjur
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
   <script>
-    // Login AJAX untuk modal login
+    // Blur background saat modal login aktif
+    const loginModal = document.getElementById('loginModal');
+    const mainContent = document.querySelector('.main-content');
+    const footer = document.querySelector('.footer');
+    if (loginModal) {
+      loginModal.addEventListener('show.bs.modal', function() {
+        mainContent.style.filter = 'blur(6px)';
+        footer.style.filter = 'blur(6px)';
+      });
+      loginModal.addEventListener('hidden.bs.modal', function() {
+        mainContent.style.filter = '';
+        footer.style.filter = '';
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       const loginForm = document.getElementById('modalLoginForm');
       const loginError = document.getElementById('loginError');
@@ -273,25 +354,13 @@ $polygon_json = json_encode([
         });
       }
     });
-  </script>
-        </div>
-      </div>
-    </div>
-  </div>
-  </div>
-  <footer class="footer">
-    &copy; 2025 Sistem Evakuasi Cerdas Cianjur &mdash; Powered by Leaflet & Bootstrap
-  </footer>
 
-  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-  <script>
     const map = L.map('map').setView([-6.82, 107.14], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     const markerData = <?= $marker_json ?>;
     const polygonData = <?= $polygon_json ?>;
 
-    // Batas wilayah Cianjur (GeoJSON)
     let batasCianjur = null;
     fetch('data/batas_cianjur.geojson')
       .then(res => res.json())
@@ -302,48 +371,12 @@ $polygon_json = json_encode([
         }).addTo(map);
       });
 
-    // // Batas wilayah kecamatan (GeoJSON)
-    // let batasKecamatan = null;
-    // fetch('data/batas_kecamatan.geojson')
-    //   .then(res => res.json())
-    //   .then(data => {
-    //     batasKecamatan = data;
-    //     L.geoJSON(batasKecamatan, {
-    //       style: { color: '#f2c512ff', weight: 2, fillOpacity: 0 }
-    //     }).addTo(map);
-    //   });
-    // // Batas wilayah kelurahan (GeoJSON)
-    // let batasKelurahan = null;
-    // fetch('data/batas_kelurahan.geojson')
-    //   .then(res => res.json())
-    //   .then(data => {
-    //     batasKelurahan = data;
-    //     L.geoJSON(batasKelurahan, {
-    //       style: { color: '#eb12f2ff', weight: 2, fillOpacity: 0 }
-    //     }).addTo(map);
-    //   });
-
-    // wilayah bencana
-    L.geoJSON(polygonData, {
-      style: f => ({
-        color: f.properties.color || 'red',
-        fillColor: f.properties.color || 'red',
-        fillOpacity: 0.4
-      })
-    }).addTo(map);
-
-    // Titik evakuasi hanya dari database (markerData)
-    markerData.forEach((m, i) => {
-      L.marker([m.lat, m.lng], {icon: L.icon({iconUrl: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/icons/flag-fill.svg', iconSize: [28, 28], iconAnchor: [14, 28]})}).addTo(map).bindPopup(`<i class='bi bi-flag-fill text-success'></i> Titik Evakuasi: ${m.nama}`);
-    });
-
     let graphNodes = {};
     let graphEdges = [];
 
     function pointToKey(latlng) {
       return latlng.lat.toFixed(6) + ',' + latlng.lng.toFixed(6);
     }
-
     function haversineDistance(latlng1, latlng2) {
       const R = 6371e3;
       const rad = x => x * Math.PI / 180;
@@ -355,52 +388,33 @@ $polygon_json = json_encode([
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
-
     function isInDisasterArea(latlng) {
       return polygonData.features.some(polygon =>
         turf.booleanPointInPolygon(turf.point([latlng.lng, latlng.lat]), polygon)
       );
     }
-
     function addEdge(a, b, weight) {
       if (isInDisasterArea(a) || isInDisasterArea(b)) return;
       const keyA = pointToKey(a);
       const keyB = pointToKey(b);
       if (!graphNodes[keyA]) graphNodes[keyA] = a;
       if (!graphNodes[keyB]) graphNodes[keyB] = b;
-      graphEdges.push({
-        from: keyA,
-        to: keyB,
-        weight
-      });
-      graphEdges.push({
-        from: keyB,
-        to: keyA,
-        weight
-      });
+      graphEdges.push({ from: keyA, to: keyB, weight });
+      graphEdges.push({ from: keyB, to: keyA, weight });
     }
 
-    // manggil grafik jalur evakuasi
-
-    fetch('data/jalan_cianjur.geojson')
+    fetch('data/jalan_cianjur1.geojson')
       .then(res => res.json())
       .then(data => {
         L.geoJSON(data, {
-          style: {
-            color: '#00cc66',
-            weight: 2
-          },
+          style: { color: '#00cc66', weight: 2 },
           onEachFeature: function(feature, layer) {
-
             if (!feature.geometry || feature.geometry.type !== 'LineString') return;
-
             const coords = feature.geometry.coordinates;
             if (!Array.isArray(coords)) return;
-
             for (let i = 0; i < coords.length - 1; i++) {
               const coordA = coords[i];
               const coordB = coords[i + 1];
-
               if (
                 Array.isArray(coordA) && coordA.length === 2 &&
                 Array.isArray(coordB) && coordB.length === 2
@@ -412,24 +426,43 @@ $polygon_json = json_encode([
               }
             }
           }
-
         }).addTo(map);
+
+        L.geoJSON(polygonData, {
+          style: f => ({
+            color: f.properties.color || 'red',
+            fillColor: f.properties.color || 'red',
+            fillOpacity: 0.4
+          })
+        }).addTo(map);
+
+        markerData.forEach((m, i) => {
+          if (
+            typeof m.lat === 'number' && typeof m.lng === 'number' &&
+            m.lat !== 0 && m.lng !== 0
+          ) {
+            L.marker([m.lat, m.lng], {
+              icon: L.icon({
+                iconUrl: 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/icons/flag-fill.svg',
+                iconSize: [28, 28],
+                iconAnchor: [14, 28]
+              })
+            }).addTo(map).bindPopup(`<i class='bi bi-flag-fill text-success'></i> Titik Evakuasi: ${m.nama}`);
+          }
+        });
       });
 
     function aStar(start, goal) {
       const startKey = pointToKey(start);
       const goalKey = pointToKey(goal);
       const openSet = new Set([startKey]);
-      const cameFrom = {},
-        gScore = {},
-        fScore = {};
+      const cameFrom = {}, gScore = {}, fScore = {};
       for (let key in graphNodes) {
         gScore[key] = Infinity;
         fScore[key] = Infinity;
       }
       gScore[startKey] = 0;
       fScore[startKey] = haversineDistance(start, goal);
-
       while (openSet.size > 0) {
         let currentKey = [...openSet].reduce((a, b) => fScore[a] < fScore[b] ? a : b);
         if (currentKey === goalKey) {
@@ -456,8 +489,7 @@ $polygon_json = json_encode([
     }
 
     function findNearestNode(latlng) {
-      let nearest = null,
-        minDist = Infinity;
+      let nearest = null, minDist = Infinity;
       for (let key in graphNodes) {
         const dist = haversineDistance(latlng, graphNodes[key]);
         if (dist < minDist) {
@@ -467,10 +499,8 @@ $polygon_json = json_encode([
       }
       return nearest;
     }
-
     function findNearestSafeNode(latlng) {
-      let nearest = null,
-        minDist = Infinity;
+      let nearest = null, minDist = Infinity;
       for (let key in graphNodes) {
         const node = graphNodes[key];
         if (!isInDisasterArea(node)) {
@@ -486,17 +516,18 @@ $polygon_json = json_encode([
 
     let manualMode = false;
     let manualMarker = null;
+    let polylineEvakuasi = null;
+    let polylineToNode = null;
+    let polylineToGoal = null;
 
     document.getElementById("startBtn").addEventListener("click", () => {
       if (!navigator.geolocation) return alert("Geolocation tidak didukung.");
       navigator.geolocation.getCurrentPosition(pos => {
         const userLatLng = L.latLng(pos.coords.latitude, pos.coords.longitude);
-        // Pastikan batasCianjur sudah dimuat
         if (!batasCianjur) {
           alert("Batas wilayah Cianjur belum dimuat. Silakan coba lagi.");
           return;
         }
-        // Cek apakah user di dalam Cianjur
         const isInCianjur = turf.booleanPointInPolygon(
           turf.point([userLatLng.lng, userLatLng.lat]),
           batasCianjur.features ? batasCianjur.features[0] : batasCianjur
@@ -504,17 +535,22 @@ $polygon_json = json_encode([
         if (!isInCianjur) {
           alert("Lokasi Anda di luar Kabupaten Cianjur! Silakan pilih lokasi manual di dalam Cianjur dengan klik pada peta.");
           manualMode = true;
-          if (manualMarker) {
-            map.removeLayer(manualMarker);
-            manualMarker = null;
-          }
+          // Tampilkan tooltip instruksi di peta jika ingin
           return;
         }
         jalankanEvakuasi(userLatLng);
       });
     });
 
-    // Fungsi untuk menjalankan proses evakuasi dari lokasi tertentu
+    function getTurnDirection(p1, p2, p3) {
+      const v1 = [p2.lng - p1.lng, p2.lat - p1.lat];
+      const v2 = [p3.lng - p2.lng, p3.lat - p2.lat];
+      const cross = v1[0]*v2[1] - v1[1]*v2[0];
+      const dot = v1[0]*v2[0] + v1[1]*v2[1];
+      const angle = Math.atan2(cross, dot) * 180 / Math.PI;
+      return angle;
+    }
+
     function jalankanEvakuasi(userLatLng) {
       const startNode = findNearestSafeNode(userLatLng);
       let candidates = [];
@@ -522,7 +558,7 @@ $polygon_json = json_encode([
         const node = findNearestSafeNode(m);
         if (node) {
           const dist = haversineDistance(userLatLng, m);
-          candidates.push({ marker: m, node, dist });
+          candidates.push({ marker: m, node, dist, markerLatLng: m });
         }
       });
       if (candidates.length === 0 || !startNode) {
@@ -531,54 +567,72 @@ $polygon_json = json_encode([
       }
       candidates.sort((a, b) => a.dist - b.dist);
       const goalNode = candidates[0].node;
+      const goalLatLng = candidates[0].markerLatLng;
       const path = aStar(startNode, goalNode);
-      // Tampilkan polyline dan info jalan
+      if (manualMarker) {
+        map.removeLayer(manualMarker);
+        manualMarker = null;
+      }
+      if (polylineToNode) {
+        map.removeLayer(polylineToNode);
+        polylineToNode = null;
+      }
+      if (polylineToGoal) {
+        map.removeLayer(polylineToGoal);
+        polylineToGoal = null;
+      }
+      if (startNode && (userLatLng.lat !== startNode.lat || userLatLng.lng !== startNode.lng)) {
+        polylineToNode = L.polyline([userLatLng, startNode], {
+          color: 'blue',
+          weight: 3,
+          dashArray: '6, 8',
+          opacity: 0.8
+        }).addTo(map);
+      }
+      if (goalNode && goalLatLng && (goalNode.lat !== goalLatLng.lat || goalNode.lng !== goalLatLng.lng)) {
+        polylineToGoal = L.polyline([goalNode, goalLatLng], {
+          color: 'blue',
+          weight: 3,
+          dashArray: '6, 8',
+          opacity: 0.8
+        }).addTo(map);
+      }
       if (path) {
-        L.polyline(path, {
+        if (polylineEvakuasi) {
+          map.removeLayer(polylineEvakuasi);
+          polylineEvakuasi = null;
+        }
+        polylineEvakuasi = L.polyline(path, {
           color: 'blue',
           weight: 4
         }).addTo(map);
-        map.fitBounds(L.polyline(path).getBounds());
+        map.fitBounds(polylineEvakuasi.getBounds());
 
-        // Ambil info jalan dari GeoJSON jalan_cianjur
-        fetch('data/jalan_cianjur.geojson')
+        fetch('data/jalan_cianjur1.geojson')
           .then(res => res.json())
           .then(jalanGeojson => {
-            // Cari ruas jalan yang dilalui
             let jalanDilalui = [];
             let totalJarak = 0;
             for (let i = 0; i < path.length - 1; i++) {
               const a = path[i];
               const b = path[i + 1];
               let namaJalan = '-';
-              let minDist = Infinity;
-              let found = false;
-              // Cari ruas terdekat di GeoJSON
-              jalanGeojson.features.forEach(f => {
-                if (f.geometry.type === 'LineString') {
-                  for (let j = 0; j < f.geometry.coordinates.length - 1; j++) {
-                    const ca = f.geometry.coordinates[j];
-                    const cb = f.geometry.coordinates[j + 1];
-                    const la = {lat: ca[1], lng: ca[0]};
-                    const lb = {lat: cb[1], lng: cb[0]};
-                    // Cek apakah ruas ini mirip dengan ruas path
-                    const distA = haversineDistance(a, la);
-                    const distB = haversineDistance(b, lb);
-                    const distAB = haversineDistance(a, b);
-                    const distLAB = haversineDistance(la, lb);
-                    if (distA < 30 && distB < 30 && Math.abs(distAB - distLAB) < 30) {
-                      namaJalan = f.properties && f.properties.nama ? f.properties.nama : '-';
-                      found = true;
-                      break;
-                    }
-                  }
+              if (i === 0) {
+                namaJalan = 'Mulai';
+              } else if (i === path.length - 2) {
+                namaJalan = 'Tujuan';
+              } else if (i > 0 && i < path.length - 2) {
+                const angle = getTurnDirection(path[i-1], a, b);
+                if (Math.abs(angle) > 25) {
+                  namaJalan = (angle > 0) ? 'Belok Kiri' : 'Belok Kanan';
+                } else {
+                  namaJalan = 'Lurus';
                 }
-              });
+              }
               const jarak = haversineDistance(a, b);
               totalJarak += jarak;
               jalanDilalui.push({nama: namaJalan, jarak: jarak});
             }
-            // Tampilkan di tabel
             const tableBody = document.getElementById('jalanInfoTable');
             tableBody.innerHTML = '';
             const maxRows = 6;
@@ -592,7 +646,8 @@ $polygon_json = json_encode([
               tr.innerHTML = `<td colspan='2' class='text-center text-muted'>...</td>`;
               tableBody.appendChild(tr);
             }
-            document.getElementById('totalJarakCell').textContent = totalJarak.toFixed(1);
+            const totalJarakKm = totalJarak / 1000;
+            document.getElementById('totalJarakCell').textContent = totalJarakKm.toFixed(2) + " km";
             document.getElementById('jalanInfoContainer').style.display = 'block';
           });
       } else {
@@ -601,11 +656,10 @@ $polygon_json = json_encode([
       }
     }
 
-    // Event klik peta untuk mode manual
+    // FIXED: Selalu tampilkan icon manual ketika klik pada lokasi manual!
     map.on('click', function(e) {
       if (!manualMode) return;
       const latlng = e.latlng;
-      // Pastikan klik di dalam Cianjur
       if (!batasCianjur) return;
       const isInCianjur = turf.booleanPointInPolygon(
         turf.point([latlng.lng, latlng.lat]),
@@ -616,11 +670,23 @@ $polygon_json = json_encode([
         return;
       }
       if (manualMarker) map.removeLayer(manualMarker);
-      manualMarker = L.marker(latlng, { draggable: true }).addTo(map).bindPopup('Lokasi Manual').openPopup();
+
+      // Gunakan SVG icon manual agar selalu muncul di semua device
+      let manualIcon = L.icon({
+        iconUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="blue" viewBox="0 0 16 16"><path d="M8 1a7 7 0 0 1 7 7c0 4.418-7 7-7 7S1 12.418 1 8a7 7 0 0 1 7-7zm0 2a5 5 0 0 0-5 5c0 2.5 4.5 4.5 5 4.5s5-2 5-4.5A5 5 0 0 0 8 3zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/></svg>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -28],
+        className: 'manual-location-icon'
+      });
+
+      // Tambahkan marker manual yang SELALU tampil
+      manualMarker = L.marker(latlng, { draggable: true, icon: manualIcon }).addTo(map)
+        .bindPopup('<span style="color:#0d6efd;"><i class="bi bi-person-fill"></i> Lokasi Manual</span>').openPopup();
+
       manualMode = false;
       jalankanEvakuasi(latlng);
     });
   </script>
 </body>
-
 </html>
