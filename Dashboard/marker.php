@@ -27,6 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     $lat  = $_POST['latitude'] ?? '';
     $lng  = $_POST['longitude'] ?? '';
     $ket  = trim($_POST['keterangan'] ?? '');
+    $kapasitas = trim($_POST['kapasitas'] ?? '');
+    $fasilitas = trim($_POST['fasilitas'] ?? '');
+    $foto = trim($_POST['foto'] ?? '');
+    $deskripsi = trim($_POST['deskripsi'] ?? '');
 
     if ($nama === '' || $lat === '' || $lng === '') {
         $error = "Nama, Latitude dan Longitude wajib diisi.";
@@ -35,12 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     } elseif (!is_in_cianjur($lat, $lng)) {
         $error = "Lokasi marker di luar batas administratif Kabupaten Cianjur. Silakan pilih lokasi di dalam Cianjur!";
     } else {
-        $stmt = $conn->prepare("INSERT INTO titik_evakuasi (nama, latitude, longitude, keterangan) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param("sdds", $nama, $lat, $lng, $ket);
+       $stmt = $conn->prepare("INSERT INTO titik_evakuasi (nama, latitude, longitude, keterangan, kapasitas, fasilitas, foto, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sddsssss", $nama, $lat, $lng, $ket, $kapasitas, $fasilitas, $foto, $deskripsi);
         if ($stmt->execute()) {
-            $success = "Titik berhasil disimpan.";
-        } else {
-            $error = "Gagal menyimpan data. " . $conn->error;
+        $success = "Titik berhasil disimpan.";
+    } else {
+        $error = "Gagal menyimpan data. " . $conn->error;
         }
     }
 }
@@ -514,29 +518,42 @@ function esc($s) {
                   <i class="bi bi-plus-circle"></i> Form Tambah Titik Evakuasi
                 </div>
                 <div class="p-4">
-                <form method="post" autocomplete="off">
-                    <input type="hidden" name="action" value="create">
-                    <div class="mb-2">
-                        <label class="form-label" for="nama">Nama Titik/Posko</label>
-                        <input type="text" name="nama" id="nama" class="form-control" required placeholder="Contoh: Posko Utama">
+                <form method="post" autocomplete="off" enctype="multipart/form-data">
+                  <input type="hidden" name="action" value="create">
+                  <div class="mb-2">
+                    <label class="form-label" for="nama">Nama Titik/Posko</label>
+                    <input type="text" name="nama" id="nama" class="form-control" required placeholder="Contoh: Posko Utama">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label" for="kapasitas">Kapasitas</label>
+                    <input type="text" name="kapasitas" id="kapasitas" class="form-control" placeholder="Misal: 100 orang">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label" for="fasilitas">Fasilitas Dasar</label>
+                    <input type="text" name="fasilitas" id="fasilitas" class="form-control" placeholder="Misal: Toilet, Air Bersih, Dapur Umum">
+                  </div>
+                  <div class="row mb-2">
+                    <div class="col-md-6">
+                      <label class="form-label" for="lat">Latitude</label>
+                      <input type="text" name="latitude" id="lat" class="form-control" required placeholder="-6.82">
                     </div>
-                    <div class="row mb-2">
-                      <div class="col-md-6">
-                        <label class="form-label" for="lat">Latitude</label>
-                        <input type="text" name="latitude" id="lat" class="form-control" required placeholder="-6.82">
-                      </div>
-                      <div class="col-md-6">
-                        <label class="form-label" for="lng">Longitude</label>
-                        <input type="text" name="longitude" id="lng" class="form-control" required placeholder="107.14">
-                      </div>
+                    <div class="col-md-6">
+                      <label class="form-label" for="lng">Longitude</label>
+                      <input type="text" name="longitude" id="lng" class="form-control" required placeholder="107.14">
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label" for="keterangan">Keterangan</label>
-                        <textarea name="keterangan" id="keterangan" class="form-control" placeholder="Keterangan tambahan..."></textarea>
-                    </div>
-                    <div class="d-grid gap-2 mt-2">
-                      <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Simpan Titik</button>
-                    </div>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label" for="foto">Foto (URL)</label>
+                    <input type="text" name="foto" id="foto" class="form-control" placeholder="URL gambar atau upload">
+                    <!-- Atau bisa <input type="file"> jika ingin upload, tapi perlu handling upload di PHP -->
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label" for="deskripsi">Deskripsi Kondisi</label>
+                    <textarea name="deskripsi" id="deskripsi" class="form-control" placeholder="Deskripsi kondisi tempat..."></textarea>
+                  </div>
+                  <div class="d-grid gap-2 mt-2">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Simpan Titik</button>
+                  </div>
                 </form>
                 <div class="mt-3 small text-muted">
                   <i class="bi bi-info-circle"></i> Klik pada peta untuk mengisi otomatis koordinat Latitude & Longitude.
@@ -554,37 +571,47 @@ function esc($s) {
         <div class="p-3 bg-white rounded-bottom">
         <div class="table-responsive">
             <table class="table table-bordered table-hover table-striped table-sm align-middle" id="titikTable">
-                <thead class="table-light align-middle">
-                  <tr>
-                    <th class="fw-bold text-center">#</th>
-                    <th class="fw-bold">Nama</th>
-                    <th class="fw-bold">Latitude</th>
-                    <th class="fw-bold">Longitude</th>
-                    <th class="fw-bold">Keterangan</th>
-                    <th class="fw-bold">Dibuat</th>
-                    <th class="fw-bold text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <?php if ($all): $no=1; foreach($all as $row): ?>
-                  <tr>
-                    <td class="text-center text-secondary small"><?= $no++ ?></td>
-                    <td class="fw-semibold text-dark"><?= esc($row['nama']) ?></td>
-                    <td><span class="badge rounded-pill bg-primary-subtle text-primary small px-2 py-1"><?= esc($row['latitude']) ?></span></td>
-                    <td><span class="badge rounded-pill bg-primary-subtle text-primary small px-2 py-1"><?= esc($row['longitude']) ?></span></td>
-                    <td><?= esc($row['keterangan']) ? esc($row['keterangan']) : '<span class="text-muted fst-italic">-</span>' ?></td>
-                    <td><span class="badge rounded-pill bg-secondary-subtle text-dark small px-2 py-1"><?= esc($row['waktu_dibuat']) ?></span></td>
-                    <td class="text-center">
-                      <a href="#" class="btn btn-sm btn-outline-danger rounded-circle btn-delete" data-id="<?= $row['id'] ?>" title="Hapus">
-                        <i class="bi bi-trash"></i>
-                      </a>
-                    </td>
-                  </tr>
-                  <?php endforeach; else: ?>
-                  <tr><td colspan="7" class="text-center text-muted">Belum ada data</td></tr>
-                  <?php endif; ?>
-                </tbody>
-            </table>
+          <thead class="table-light align-middle">
+            <tr>
+              <th class="fw-bold text-center">#</th>
+              <th class="fw-bold">Nama Titik Evakuasi</th>
+              <th class="fw-bold">Kapasitas</th>
+              <th class="fw-bold">Fasilitas Dasar</th>
+              <th class="fw-bold">Koordinat/Lokasi</th>
+              <th class="fw-bold">Foto/Deskripsi Kondisi</th>
+              <th class="fw-bold">Dibuat</th>
+              <th class="fw-bold text-center">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if ($all): $no=1; foreach($all as $row): ?>
+            <tr>
+              <td class="text-center text-secondary small"><?= $no++ ?></td>
+              <td class="fw-semibold text-dark"><?= esc($row['nama']) ?></td>
+              <td><?= esc($row['kapasitas'] ?? '-') ?></td>
+              <td><?= esc($row['fasilitas'] ?? '-') ?></td>
+              <td>
+                <span class="badge rounded-pill bg-primary-subtle text-primary small px-2 py-1"><?= esc($row['latitude']) ?></span>
+                <span class="badge rounded-pill bg-primary-subtle text-primary small px-2 py-1"><?= esc($row['longitude']) ?></span>
+              </td>
+              <td>
+                <?php if (!empty($row['foto'])): ?>
+                  <img src="<?= esc($row['foto']) ?>" alt="Foto" style="max-width:80px;max-height:60px;border-radius:6px"><br>
+                <?php endif; ?>
+                <?= esc($row['deskripsi'] ?? '-') ?>
+              </td>
+              <td><span class="badge rounded-pill bg-secondary-subtle text-dark small px-2 py-1"><?= esc($row['waktu_dibuat']) ?></span></td>
+              <td class="text-center">
+                <a href="#" class="btn btn-sm btn-outline-danger rounded-circle btn-delete" data-id="<?= $row['id'] ?>" title="Hapus">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </td>
+            </tr>
+            <?php endforeach; else: ?>
+            <tr><td colspan="8" class="text-center text-muted">Belum ada data</td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
         </div>
         </div>
     </div>
@@ -666,16 +693,32 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // Tampilkan polygon bencana dari database
-const polygonsFromDB = <?= json_encode($polygons, JSON_UNESCAPED_UNICODE) ?>;
-polygonsFromDB.forEach(p => {
-    try {
-        const geojson = JSON.parse(p.geojson);
-        L.geoJSON(geojson, {
-            style: { color: p.color, fillColor: p.color, fillOpacity: 0.4 }
-        }).addTo(map).bindTooltip(p.nama, {permanent:false, direction:'top'});
-    } catch (e) {
-        console.error("Error parsing polygon:", e);
-    }
+map.createPane('polygonPane');
+map.getPane('polygonPane').style.zIndex = 650;
+const polygons = <?= json_encode($polygons, JSON_UNESCAPED_UNICODE) ?>;
+polygons.forEach(p => {
+  const layer = L.geoJSON(JSON.parse(p.geojson), {
+    pane: 'polygonPane',
+    style: { color: p.color, fillColor: p.color, fillOpacity: 0.4 }
+  }).addTo(map);
+
+  // pastikan selalu di atas
+  layer.bringToFront();
+
+  let popupHtml = `
+    <div style="min-width:220px; position: relative; z-index: 1;">
+      <div class="fw-bold mb-1"><i class="bi bi-vector-pen text-success"></i> ${p.nama}</div>
+      <div class="mb-1">
+        <span class="badge " style="background:${p.color};">
+          ${p.status}
+        </span>
+      </div>
+      <div class="mb-1"><b>Luas:</b> ${p.luas ? (Number(p.luas).toLocaleString('id') + ' m²') : '-'}</div>
+      <div class="mb-1"><b>Waktu dibuat:</b> ${p.created_at}</div>
+    </div>
+  `;
+  
+  layer.bindPopup(popupHtml);
 });
 
 // Tampilkan marker titik posko dari database
@@ -685,8 +728,10 @@ markers.forEach(m => {
     marker.bindPopup(`
       <div style='min-width:180px'>
         <div class='fw-bold mb-1'><i class='bi bi-geo-alt-fill text-primary'></i> ${m.nama}</div>
+        <div class='mb-1'><b>Kapasitas:</b> ${m.kapasitas || '-'}<br><b>Fasilitas:</b> ${m.fasilitas || '-'}</div>
         <div class='small text-muted mb-1'>Lat: <b>${m.latitude}</b> | Lng: <b>${m.longitude}</b></div>
-        <div class='mb-1'>${m.keterangan ? m.keterangan : '<span class=\'text-muted fst-italic\'>Tidak ada keterangan</span>'}</div>
+        <div class='mb-1'>${m.deskripsi ? m.deskripsi : '<span class="text-muted fst-italic">Tidak ada deskripsi</span>'}</div>
+        ${m.foto ? `<img src="${m.foto}" alt="Foto" style="max-width:100px;max-height:80px;border-radius:6px"><br>` : ''}
         <div class='text-secondary small'>${m.waktu_dibuat ? 'Dibuat: ' + m.waktu_dibuat : ''}</div>
       </div>
     `);

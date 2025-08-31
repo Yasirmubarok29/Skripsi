@@ -22,13 +22,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'simpan') {
     $color = $_POST['color'];
     $geojson = $_POST['geojson'];
     $status = $_POST['status'];
+    $luas = $_POST['luas'];
     // VALIDASI: semua vertex polygon harus di dalam Cianjur
     if (!is_polygon_in_cianjur($geojson)) {
         echo "<script>alert('Polygon berada di luar batas administratif Kabupaten Cianjur! Silakan gambar di dalam Cianjur.');window.location='poligon.php';</script>";
         exit;
     }
-    $stmt = $conn->prepare("INSERT INTO wilayah_bencana (nama, color, geojson, status, created_at) VALUES (?, ?, ?, ?, NOW())");
-    $stmt->bind_param("ssss", $nama, $color, $geojson, $status);
+    $stmt = $conn->prepare("INSERT INTO wilayah_bencana (nama, color, geojson, status, luas, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
+    $stmt->bind_param("ssssd", $nama, $color, $geojson, $status, $luas);
     $stmt->execute();
     header("Location: poligon.php");
     exit;
@@ -41,13 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'update') {
     $color = $_POST['color'];
     $geojson = $_POST['geojson'];
     $status = $_POST['status'];
+    $luas = $_POST['luas'];
     // VALIDASI: semua vertex polygon harus di dalam Cianjur
     if (!is_polygon_in_cianjur($geojson)) {
         echo "<script>alert('Polygon berada di luar batas administratif Kabupaten Cianjur! Silakan gambar di dalam Cianjur.');window.location='poligon.php';</script>";
         exit;
     }
-    $stmt = $conn->prepare("UPDATE wilayah_bencana SET nama=?, color=?, geojson=?, status=? WHERE id=?");
-    $stmt->bind_param("ssssi", $nama, $color, $geojson, $status, $id);
+    $stmt = $conn->prepare("UPDATE wilayah_bencana SET nama=?, color=?, geojson=?, status=?, luas=? WHERE id=?");
+    $stmt->bind_param("ssssdi", $nama, $color, $geojson, $status, $luas, $id);
     $stmt->execute();
     header("Location: poligon.php");
     exit;
@@ -126,6 +128,7 @@ function is_polygon_in_cianjur($geojson_str) {
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <style>
     body {
       background: #eef0f3;
@@ -424,6 +427,7 @@ function is_polygon_in_cianjur($geojson_str) {
     }
   </style>
 </head>
+
 <body>
 <!-- SIDEBAR -->
 <nav id="sidebar" class="sidebar d-flex flex-column">
@@ -477,11 +481,18 @@ function is_polygon_in_cianjur($geojson_str) {
             <input type="hidden" name="action" value="simpan" id="formAction">
             <input type="hidden" name="id" id="polygonId">
             <input type="hidden" name="geojson" id="geojsonData">
-            <input type="hidden" name="color" id="color" value="#ff0000">
+            <input type="hidden" name="color" id="color">
+            <input type="hidden" name="luas" id="inputLuas">
+            
             <div class="mb-3">
-              <label class="form-label">Nama Wilayah</label>
-              <input type="text" name="nama" id="nama" class="form-control" placeholder="Nama Wilayah..." required>
-            </div>
+            <label class="form-label">Kategori Bencana</label>
+            <select name="nama" id="nama" class="form-select" required>
+              <option value="GEMPA BUMI">GEMPA BUMI</option>
+              <option value="TANAH LONGSOR">TANAH LONGSOR</option>
+              <option value="BANJIR">BANJIR</option>
+              <option value="LETUSAN GUNUNG BERAPI">LETUSAN GUNUNG BERAPI</option>
+            </select>
+          </div>
             <div class="mb-3">
               <label class="form-label">Status</label>
               <select name="status" id="status" class="form-select" required>
@@ -490,7 +501,11 @@ function is_polygon_in_cianjur($geojson_str) {
                 <option value="WASPADA">WASPADA</option>
               </select>
             </div>
-            <button type="submit" class="btn btn-success w-100"><i class="bi bi-check-lg"></i> Simpan Polygon</button>
+            <div class="mb-3">
+  <label class="form-label">Luas Wilayah <span class="text-muted" style="font-weight:normal">(otomatis)</span></label>
+  <input type="text" id="luasPolygon" class="form-control" readonly>
+</div>
+<button type="submit" class="btn btn-success w-100"><i class="bi bi-check-lg"></i> Simpan Polygon</button>
           </form>
         </div>
       </div>
@@ -507,11 +522,11 @@ function is_polygon_in_cianjur($geojson_str) {
           <thead class="table-light">
             <tr>
               <th class="text-center">#</th>
-              <th>Nama</th>
+              <th>Kategori Bencana</th>
               <th>Status</th>
-              <th>Warna</th>
               <th>Waktu</th>
-              <th class="text-center">Aksi</th>
+              <th>Aksi</th>
+              <th class="text-center">Luas</th>
             </tr>
           </thead>
           <tbody>
@@ -520,20 +535,19 @@ function is_polygon_in_cianjur($geojson_str) {
               <td class="text-center"><?= $no++ ?></td>
               <td><?= esc($p['nama']) ?></td>
               <td>
-                <span class="badge <?= $p['status'] === 'BAHAYA' ? 'bg-danger' : ($p['status'] === 'SIAGA' ? 'bg-warning text-dark' : 'bg-primary') ?>">
-                  <i class="bi <?= $p['status'] === 'BAHAYA' ? 'bi-exclamation-triangle' : ($p['status'] === 'SIAGA' ? 'bi-exclamation-circle' : 'bi-info-circle') ?>"></i>
+                <span class="badge rounded-pill" style="background:<?= esc($p['color']) ?>; color:#fff;">
+                  <i class="bi" style="background:<?= esc($p['color']) ?>"></i>
                   <?= esc(ucfirst($p['status'])) ?>
                 </span>
               </td>
-              <td>
-                <span class="badge-color" style="background:<?= esc($p['color']) ?>"></span>
-                <?= esc($p['color']) ?>
-              </td>
+          
               <td><?= esc($p['created_at']) ?></td>
               <td class="text-center">
                 <button onclick='editPolygon(<?= json_encode($p) ?>)' class="btn btn-sm btn-outline-primary rounded-circle me-1" title="Edit"><i class="bi bi-pencil"></i></button>
                 <a href="#" class="btn btn-sm btn-outline-danger rounded-circle btn-delete" data-id="<?= $p['id'] ?>" title="Hapus"><i class="bi bi-trash"></i></a>
+              <td><?= isset($p['luas']) ? number_format($p['luas'],0,',','.') . ' m²' : '-' ?></td>
               </td>
+  
             </tr>
           <?php endforeach ?>
           </tbody>
@@ -608,16 +622,63 @@ map.addControl(new L.Control.Draw({
   draw: { polygon: true, marker: false, polyline: false, rectangle: false, circle: false, circlemarker: false },
   edit: { featureGroup: drawnItems }
 }));
+// --- Tambahkan FUNGSI INI di bawah inisialisasi drawnItems ---
+function updateLuasPolygonDisplay() {
+  if (drawnItems.getLayers().length === 0) {
+    document.getElementById('luasPolygon').value = '';
+    return;
+  }
+  const gj = drawnItems.toGeoJSON();
+  let luas = 0;
+  (gj.features || [gj]).forEach(feat => {
+    if (feat.geometry && (feat.geometry.type === "Polygon" || feat.geometry.type === "MultiPolygon")) {
+      luas += turf.area(feat); // Turf.js: hasil meter persegi
+    }
+  });
+  let luasText = luas.toLocaleString('id') + " m²";
+  if (luas > 10000) {
+    luasText += " (" + (luas / 10000).toLocaleString('id', {maximumFractionDigits:2}) + " ha)";
+  }
+  document.getElementById('luasPolygon').value = luasText;
+  document.getElementById('inputLuas').value = luas; // <-- simpan ke input hidden
+}
 map.on(L.Draw.Event.CREATED, e => {
   drawnItems.clearLayers();
   drawnItems.addLayer(e.layer);
+  updateLuasPolygonDisplay(); // Hitung luas ketika polygon dibuat
 });
+  map.on(L.Draw.Event.EDITED, updateLuasPolygonDisplay); // Saat edit polygon
+  map.on(L.Draw.Event.DELETED, updateLuasPolygonDisplay); // Saat hapus polygon
+
+map.createPane('polygonPane');
+map.getPane('polygonPane').style.zIndex = 650;
 const polygons = <?= json_encode($polygons, JSON_UNESCAPED_UNICODE) ?>;
 polygons.forEach(p => {
   const layer = L.geoJSON(JSON.parse(p.geojson), {
+    pane: 'polygonPane',
     style: { color: p.color, fillColor: p.color, fillOpacity: 0.4 }
-  }).addTo(map).bindPopup(`${p.nama} - ${p.status}`);
+  }).addTo(map);
+
+  // pastikan selalu di atas
+  layer.bringToFront();
+
+  let popupHtml = `
+    <div style="min-width:220px; position: relative; z-index: 1;">
+      <div class="fw-bold mb-1"><i class="bi bi-vector-pen text-success"></i> ${p.nama}</div>
+      <div class="mb-1">
+        <span class="badge " style="background:${p.color};">
+          ${p.status}
+        </span>
+      </div>
+      <div class="mb-1"><b>Luas:</b> ${p.luas ? (Number(p.luas).toLocaleString('id') + ' m²') : '-'}</div>
+      <div class="mb-1"><b>Waktu dibuat:</b> ${p.created_at}</div>
+    </div>
+  `;
+  
+  layer.bindPopup(popupHtml);
 });
+
+
 const markerData = <?= json_encode($markers, JSON_UNESCAPED_UNICODE) ?>;
 markerData.forEach(m => {
   L.marker([m.latitude, m.longitude]).addTo(map).bindPopup(`Evakuasi: ${m.nama}`);
@@ -650,6 +711,7 @@ function editPolygon(data) {
   const layer = L.geoJSON(JSON.parse(data.geojson));
   drawnItems.addLayer(layer);
   map.fitBounds(layer.getBounds());
+  updateLuasPolygonDisplay(); // Panggil juga di sini
   document.getElementById('formAction').value = 'update';
   document.getElementById('polygonId').value = data.id;
   document.getElementById('nama').value = data.nama;

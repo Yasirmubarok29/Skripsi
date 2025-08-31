@@ -1,27 +1,43 @@
 <?php
 session_start();
 require 'conection/db.php';
+
+// --- Mulai: Pengujian performa PHP (backend) dan pengambilan data evakuasi ---
+// Mengambil data titik evakuasi dari database
+$startLoadEvakuasi = microtime(true);
 $titikEvakuasi = [];
-$res1 = $conn->query("SELECT id, nama, latitude, longitude FROM titik_evakuasi");
+$res1 = $conn->query("SELECT id, nama, latitude, longitude, fasilitas, kapasitas, deskripsi, foto, keterangan, waktu_dibuat FROM titik_evakuasi");
 while ($r = $res1->fetch_assoc()) {
     if (!empty($r['latitude']) && !empty($r['longitude']) && is_numeric($r['latitude']) && is_numeric($r['longitude'])) {
         $titikEvakuasi[] = [
             'lat' => (float)$r['latitude'],
             'lng' => (float)$r['longitude'],
-            'nama' => $r['nama']
+            'nama' => $r['nama'],
+            'fasilitas' => $r['fasilitas'],
+            'kapasitas' => $r['kapasitas'],
+            'deskripsi' => $r['deskripsi'],
+            'foto' => $r['foto'],
+            'keterangan' => $r['keterangan'],
+            'waktu_dibuat' => $r['waktu_dibuat']
         ];
     }
 }
 $marker_json = json_encode($titikEvakuasi);
-
+$endLoadEvakuasi = microtime(true);
+$durasiLoadEvakuasi = ($endLoadEvakuasi - $startLoadEvakuasi) * 1000;
+// Mengambil data wilayah bencana (poligon) dari database
+$startLoadPolygon = microtime(true);
 $polygonFeatures = [];
-$res2 = $conn->query("SELECT geojson, color FROM wilayah_bencana");
+$res2 = $conn->query("SELECT geojson, color, nama, status, luas, created_at FROM wilayah_bencana");
 while ($r = $res2->fetch_assoc()) {
     $geojson = json_decode($r['geojson'], true);
-    $color = $r['color'];
     if ($geojson && isset($geojson['features'])) {
         foreach ($geojson['features'] as &$feature) {
-            $feature['properties']['color'] = $color;
+            $feature['properties']['color']      = $r['color'];
+            $feature['properties']['nama']       = $r['nama'];
+            $feature['properties']['status']     = $r['status'];
+            $feature['properties']['luas']       = $r['luas'];
+            $feature['properties']['created_at'] = $r['created_at'];
         }
         $polygonFeatures = array_merge($polygonFeatures, $geojson['features']);
     }
@@ -30,6 +46,15 @@ $polygon_json = json_encode([
     "type" => "FeatureCollection",
     "features" => $polygonFeatures
 ]);
+$endLoadPolygon = microtime(true);
+$durasiLoadPolygon = ($endLoadPolygon - $startLoadPolygon) * 1000;
+// --- Selesai: Pengambilan data & pengujian performa PHP ---
+
+// Tampilkan waktu load di PHP ke konsol browser
+echo "<script>
+console.log('PHP: Load Marker Evakuasi: " . number_format($durasiLoadEvakuasi, 2) . " ms');
+console.log('PHP: Load Poligon Bencana: " . number_format($durasiLoadPolygon, 2) . " ms');
+</script>";
 ?>
 
 <!DOCTYPE html>
@@ -39,13 +64,14 @@ $polygon_json = json_encode([
   <title>Evakuasi A*</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Bootstrap, Leaflet, dan Bootstrap Icons -->
+  <!-- Import CSS Bootstrap, Leaflet, dan Bootstrap Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
   <style>
+    /* Style utama dan responsive */
     html, body {
       height: 100%;
       margin: 0;
@@ -210,6 +236,7 @@ $polygon_json = json_encode([
   </style>
 </head>
 <body>
+  <!-- Navbar utama -->
   <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-lg" style="background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%); min-height:70px;">
     <div class="container-fluid px-4">
       <a class="navbar-brand d-flex align-items-center gap-2" href="#" style="font-weight:700; font-size:1.3rem; letter-spacing:1px;">
@@ -227,6 +254,7 @@ $polygon_json = json_encode([
   </nav>
 
   <div class="main-content">
+    <!-- Sidebar kiri berisi menu dan petunjuk -->
     <div class="sidebar">
       <h4 class="d-flex align-items-center gap-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Evakuasi Bencana</h4>
       <a href="index.php" class="btn btn-outline-primary w-100 mb-3 d-flex align-items-center justify-content-center gap-2" style="font-weight:bold; border-radius:20px;"><i class="bi bi-house-door"></i> Beranda</a>
@@ -252,12 +280,17 @@ $polygon_json = json_encode([
       </div>
       <button id="loginBtn" type="button" class="btn btn-outline-warning w-100 d-flex align-items-center justify-content-center gap-2" style="font-weight:bold; border-radius:20px;" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="bi bi-person-circle"></i> Login</button>
     </div>
+    <!-- Peta utama dan info rute -->
     <div id="map">
       <div id="jalanInfoContainer">
         <div class="card shadow-sm" style="border-radius:12px;">
           <div class="card-header py-2 px-3" style="background:linear-gradient(90deg,#ff9800 0%,#f57c00 100%);color:#fff;font-weight:600;font-size:1rem;border-radius:12px 12px 0 0;">Jalan yang Dilalui</div>
           <div class="card-body p-2">
             <div class="table-responsive">
+              <div id="legend" class="legend d-none">
+  <h6><i class="bi bi-palette me-1"></i> Legenda Wilayah Bencana</h6>
+  <div id="legendList"></div>
+</div>
               <table class="table table-sm table-bordered mb-0" style="font-size:0.95em;">
                 <thead class="table-light">
                   <tr><th>Arah Jalan</th><th>Jarak (m)</th></tr>
@@ -274,6 +307,7 @@ $polygon_json = json_encode([
     </div>
   </div>
 
+  <!-- Modal login untuk admin -->
   <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -306,10 +340,12 @@ $polygon_json = json_encode([
     </div>
   </div>
 
+  <!-- Footer bawah -->
   <footer class="footer">
     &copy; 2025 WebGis Evakuasi &mdash; Kabupaten Cianjur
   </footer>
 
+  <!-- Import JS eksternal -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
   <script>
@@ -319,16 +355,19 @@ $polygon_json = json_encode([
     const mainContent = document.querySelector('.main-content');
     const footer = document.querySelector('.footer');
     if (loginModal) {
+      // Saat modal login muncul, blur main-content dan footer
       loginModal.addEventListener('show.bs.modal', function() {
         mainContent.style.filter = 'blur(6px)';
         footer.style.filter = 'blur(6px)';
       });
+      // Saat modal login ditutup, hilangkan blur
       loginModal.addEventListener('hidden.bs.modal', function() {
         mainContent.style.filter = '';
         footer.style.filter = '';
       });
     }
 
+    // Listener untuk proses login admin
     document.addEventListener('DOMContentLoaded', function() {
       const loginForm = document.getElementById('modalLoginForm');
       const loginError = document.getElementById('loginError');
@@ -356,28 +395,48 @@ $polygon_json = json_encode([
       }
     });
 
-    const map = L.map('map').setView([-6.82, 107.14], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
+    // --- Pengujian performa parsing data polygon dan marker di client (konsol saja) ---
     const markerData = <?= $marker_json ?>;
     const polygonData = <?= $polygon_json ?>;
 
+    // Waktu parsing polygon bencana di client
+    const t0_polygonParse = performance.now();
+    const polygonFeaturesCount = polygonData.features ? polygonData.features.length : 0;
+    const t1_polygonParse = performance.now();
+    console.log('JS: Parse Poligon Bencana (client):', (t1_polygonParse - t0_polygonParse).toFixed(2), "ms");
+
+    // Waktu parsing marker evakuasi di client
+    const t0_marker = performance.now();
+    let _dummyMarkerCount = 0;
+    markerData.forEach(m => { if (m.lat && m.lng) _dummyMarkerCount++; });
+    const t1_marker = performance.now();
+    console.log('JS: Parse Marker Evakuasi (client):', (t1_marker - t0_marker).toFixed(2), "ms");
+
+    // Inisialisasi Leaflet map
+    const map = L.map('map').setView([-6.82, 107.14], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // Variabel untuk batas wilayah Cianjur (geojson)
     let batasCianjur = null;
     fetch('data/batas_cianjur.geojson')
       .then(res => res.json())
       .then(data => {
         batasCianjur = data;
+        // Render geojson batas wilayah ke peta
         L.geoJSON(batasCianjur, {
           style: { color: '#d21919ff', weight: 2, fillOpacity: 0 }
         }).addTo(map);
       });
 
+    // Struktur graph: node dan edge untuk A*
     let graphNodes = {};
     let graphEdges = [];
 
+    // Fungsi untuk membuat key unik setiap titik (node)
     function pointToKey(latlng) {
       return latlng.lat.toFixed(6) + ',' + latlng.lng.toFixed(6);
     }
+    // Fungsi hitung jarak haversine antara dua titik (meter)
     function haversineDistance(latlng1, latlng2) {
       const R = 6371e3;
       const rad = x => x * Math.PI / 180;
@@ -389,11 +448,13 @@ $polygon_json = json_encode([
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
+    // Fungsi cek apakah node ada di area bencana
     function isInDisasterArea(latlng) {
       return polygonData.features.some(polygon =>
         turf.booleanPointInPolygon(turf.point([latlng.lng, latlng.lat]), polygon)
       );
     }
+    // Fungsi tambah edge ke graph dari node a ke node b (dua arah)
     function addEdge(a, b, weight) {
       if (isInDisasterArea(a) || isInDisasterArea(b)) return;
       const keyA = pointToKey(a);
@@ -404,9 +465,13 @@ $polygon_json = json_encode([
       graphEdges.push({ from: keyB, to: keyA, weight });
     }
 
+    // --- Mulai proses build graph jalan dan render marker ke peta ---
+    let t0_jalan, t1_jalan;
+    t0_jalan = performance.now();
     fetch('data/jalan_cianjur1.geojson')
       .then(res => res.json())
       .then(data => {
+        // Proses membangun graph dari data jalan
         L.geoJSON(data, {
           style: { color: '#00cc66', weight: 2 },
           onEachFeature: function(feature, layer) {
@@ -428,15 +493,81 @@ $polygon_json = json_encode([
             }
           }
         }).addTo(map);
+        t1_jalan = performance.now();
+        console.log('JS: Load Jalan + Build Graph:', (t1_jalan - t0_jalan).toFixed(2), "ms");
 
-        L.geoJSON(polygonData, {
-          style: f => ({
-            color: f.properties.color || 'red',
-            fillColor: f.properties.color || 'red',
-            fillOpacity: 0.4
-          })
-        }).addTo(map);
+        // --- Jalur penghubung node jalan ke titik evakuasi (edge tambahan) ---
+        markerData.forEach(evakuasi => {
+          let nearest = null, minDist = Infinity, nearestKey = null;
+          for (let key in graphNodes) {
+            const node = graphNodes[key];
+            const dist = haversineDistance(evakuasi, node);
+            if (dist < minDist) {
+              minDist = dist;
+              nearest = node;
+              nearestKey = key;
+            }
+          }
+          if (nearest && minDist < 1000) { // threshold 1km
+            const evakuasiKey = pointToKey(evakuasi);
+            if (!graphNodes[evakuasiKey]) graphNodes[evakuasiKey] = { lat: evakuasi.lat, lng: evakuasi.lng };
+            graphEdges.push({
+              from: nearestKey,
+              to: evakuasiKey,
+              weight: minDist
+            });
+            graphEdges.push({
+              from: evakuasiKey,
+              to: nearestKey,
+              weight: minDist
+            });
+            // Visualisasi garis penghubung dari node jalan ke titik evakuasi (putus-putus biru)
+            L.polyline([
+              [nearest.lat, nearest.lng],
+              [evakuasi.lat, evakuasi.lng]
+            ], {
+              color: 'blue',
+              weight: 3,
+              dashArray: '6, 8',
+              opacity: 0.8
+            }).addTo(map);
+          }
+        });
 
+        // Render poligon area bencana ke peta
+        map.createPane('polygonPane');
+      map.getPane('polygonPane').style.zIndex = 450;
+
+      const polyLayer = L.geoJSON(polygonData, {
+        pane: 'polygonPane',
+        style: f => ({
+          color: f.properties.color || 'red',
+          fillColor: f.properties.color || 'red',
+          fillOpacity: 0.4
+        }),
+        onEachFeature: function(feature, layer) {
+          const p = feature.properties;
+          let popupHtml = `
+          <div style="min-width:220px; position: relative; z-index: 1;">
+            <div class="fw-bold mb-1"><i class="bi bi-vector-pen text-success"></i> ${p.nama}</div>
+            <div class="mb-1">
+              <span class="badge " style="background:${p.color};">
+                ${p.status}
+              </span>
+            </div>
+            <div class="mb-1"><b>Luas:</b> ${p.luas ? (Number(p.luas).toLocaleString('id') + ' m²') : '-'}</div>
+            <div class="mb-1"><b>Waktu dibuat:</b> ${p.created_at}</div>
+          </div>
+        `;
+          layer.bindPopup(popupHtml);
+        }
+      }).addTo(map);
+
+      // Pastikan polyLayer di depan overlay lainnya
+      polyLayer.bringToFront();
+      
+        // Render marker evakuasi dan ukur waktu render marker ke map
+        const t0_addMarkerReal = performance.now();
         markerData.forEach((m, i) => {
           if (
             typeof m.lat === 'number' && typeof m.lng === 'number' &&
@@ -448,12 +579,27 @@ $polygon_json = json_encode([
                 iconSize: [28, 28],
                 iconAnchor: [14, 28]
               })
-            }).addTo(map).bindPopup(`<i class='bi bi-flag-fill text-success'></i> Titik Evakuasi: ${m.nama}`);
+            }).addTo(map)
+            .bindPopup(`
+              <div style="min-width:220px;">
+                <div class="fw-bold mb-1"><i class="bi bi-flag-fill text-success"></i> Titik Evakuasi: ${m.nama}</div>
+                <div class="mb-1"><b>Kapasitas:</b> ${m.kapasitas || '-'}</div>
+                <div class="mb-1"><b>Fasilitas:</b> ${m.fasilitas || '-'}</div>
+                <div class="mb-1"><b>Lat:</b> ${m.lat}, <b>Lng:</b> ${m.lng}</div>
+                <div class="mb-1"><b>Deskripsi:</b> ${m.deskripsi || '-'}</div>
+                ${m.foto ? `<img src="${m.foto}" alt="Foto" style="max-width:100px;max-height:80px;border-radius:6px"><br>` : ''}
+                <div class="mb-1"><b>Waktu dibuat:</b> ${m.waktu_dibuat || '-'}</div>
+              </div>
+            `);
           }
         });
+        const t1_addMarkerReal = performance.now();
+        console.log('JS: Render Marker Evakuasi (Leaflet):', (t1_addMarkerReal - t0_addMarkerReal).toFixed(2), "ms");
       });
-
+      
+// --- Fungsi utama Algoritma A* pathfinding ---
     function aStar(start, goal) {
+      const t0_astar = performance.now();
       const startKey = pointToKey(start);
       const goalKey = pointToKey(goal);
       const openSet = new Set([startKey]);
@@ -472,6 +618,8 @@ $polygon_json = json_encode([
             currentKey = cameFrom[currentKey];
             path.unshift(graphNodes[currentKey]);
           }
+          const t1_astar = performance.now();
+          console.log('JS: Perhitungan Rute A*:', (t1_astar - t0_astar).toFixed(2), "ms");
           return path;
         }
         openSet.delete(currentKey);
@@ -486,9 +634,12 @@ $polygon_json = json_encode([
           }
         }
       }
+      const t1_astar = performance.now();
+      console.log('JS: Perhitungan Rute A* (gagal):', (t1_astar - t0_astar).toFixed(2), "ms");
       return null;
     }
 
+    // Fungsi mencari node jalan terdekat dari suatu titik
     function findNearestNode(latlng) {
       let nearest = null, minDist = Infinity;
       for (let key in graphNodes) {
@@ -500,6 +651,7 @@ $polygon_json = json_encode([
       }
       return nearest;
     }
+    // Fungsi mencari node jalan terdekat yang aman (tidak di area bencana)
     function findNearestSafeNode(latlng) {
       let nearest = null, minDist = Infinity;
       for (let key in graphNodes) {
@@ -515,12 +667,14 @@ $polygon_json = json_encode([
       return nearest;
     }
 
+    // Variabel global untuk mode manual, marker manual, dan polyline jalur
     let manualMode = false;
     let manualMarker = null;
     let polylineEvakuasi = null;
     let polylineToNode = null;
     let polylineToGoal = null;
 
+    // Event klik tombol "Jalur Aman" (lokasi user)
     document.getElementById("startBtn").addEventListener("click", () => {
       if (!navigator.geolocation) return alert("Geolocation tidak didukung.");
       navigator.geolocation.getCurrentPosition(pos => {
@@ -529,6 +683,7 @@ $polygon_json = json_encode([
           alert("Batas wilayah Cianjur belum dimuat. Silakan coba lagi.");
           return;
         }
+        // Cek apakah posisi user di dalam Kabupaten Cianjur
         const isInCianjur = turf.booleanPointInPolygon(
           turf.point([userLatLng.lng, userLatLng.lat]),
           batasCianjur.features ? batasCianjur.features[0] : batasCianjur
@@ -543,6 +698,7 @@ $polygon_json = json_encode([
       });
     });
 
+    // Fungsi untuk menentukan arah belokan/Lurus pada jalur
     function getTurnDirection(p1, p2, p3) {
       const v1 = [p2.lng - p1.lng, p2.lat - p1.lat];
       const v2 = [p3.lng - p2.lng, p3.lat - p2.lat];
@@ -552,8 +708,9 @@ $polygon_json = json_encode([
       return angle;
     }
 
+    // Fungsi utama untuk menjalankan proses evakuasi dari user ke titik evakuasi terdekat
     function jalankanEvakuasi(userLatLng) {
-      const startNode = findNearestSafeNode(userLatLng);
+      const startNode = findNearestSafeNode(userLatLng); // node jalan terdekat (aman)
       let candidates = [];
       markerData.forEach(m => {
         const node = findNearestSafeNode(m);
@@ -566,49 +723,33 @@ $polygon_json = json_encode([
         alert("Tidak ada jalur aman ke titik evakuasi!");
         return;
       }
+      
+      // Urutkan berdasarkan jarak terdekat ke titik evakuasi
       candidates.sort((a, b) => a.dist - b.dist);
       const goalNode = candidates[0].node;
       const goalLatLng = candidates[0].markerLatLng;
+
+      // --- Proses A* dan visualisasi polyline jalur evakuasi ---
+      const t0_astar = performance.now();
       const path = aStar(startNode, goalNode);
-      if (manualMarker) {
-        map.removeLayer(manualMarker);
-        manualMarker = null;
-      }
-      if (polylineToNode) {
-        map.removeLayer(polylineToNode);
-        polylineToNode = null;
-      }
-      if (polylineToGoal) {
-        map.removeLayer(polylineToGoal);
-        polylineToGoal = null;
-      }
-      if (startNode && (userLatLng.lat !== startNode.lat || userLatLng.lng !== startNode.lng)) {
-        polylineToNode = L.polyline([userLatLng, startNode], {
-          color: 'blue',
-          weight: 3,
-          dashArray: '6, 8',
-          opacity: 0.8
-        }).addTo(map);
-      }
-      if (goalNode && goalLatLng && (goalNode.lat !== goalLatLng.lat || goalNode.lng !== goalLatLng.lng)) {
-        polylineToGoal = L.polyline([goalNode, goalLatLng], {
-          color: 'blue',
-          weight: 3,
-          dashArray: '6, 8',
-          opacity: 0.8
-        }).addTo(map);
-      }
+      const t1_astar = performance.now();
+      console.log('JS: Total Jalankan A*:', (t1_astar - t0_astar).toFixed(2), "ms");
+
+      const t0_polyline = performance.now();
       if (path) {
+        // Hapus polyline lama jika ada
         if (polylineEvakuasi) {
           map.removeLayer(polylineEvakuasi);
           polylineEvakuasi = null;
         }
+        // Gambar polyline jalur evakuasi
         polylineEvakuasi = L.polyline(path, {
           color: 'blue',
           weight: 4
         }).addTo(map);
         map.fitBounds(polylineEvakuasi.getBounds());
 
+        // Update tabel info jalan yang dilalui
         fetch('data/jalan_cianjur1.geojson')
           .then(res => res.json())
           .then(jalanGeojson => {
@@ -634,6 +775,7 @@ $polygon_json = json_encode([
               totalJarak += jarak;
               jalanDilalui.push({nama: namaJalan, jarak: jarak});
             }
+            // Update isi tabel info jalan
             const tableBody = document.getElementById('jalanInfoTable');
             tableBody.innerHTML = '';
             const maxRows = 6;
@@ -650,6 +792,9 @@ $polygon_json = json_encode([
             const totalJarakKm = totalJarak / 1000;
             document.getElementById('totalJarakCell').textContent = totalJarakKm.toFixed(2) + " km";
             document.getElementById('jalanInfoContainer').style.display = 'block';
+
+            const t1_polyline = performance.now();
+            console.log('JS: Visualisasi Polyline + Update Tabel:', (t1_polyline - t0_polyline).toFixed(2), "ms");
           });
       } else {
         alert("Jalur tidak ditemukan!");
@@ -657,11 +802,12 @@ $polygon_json = json_encode([
       }
     }
 
-    // FIXED: Selalu tampilkan icon manual ketika klik pada lokasi manual!
+    // Event klik pada peta untuk mode manual (user pilih lokasi manual)
     map.on('click', function(e) {
       if (!manualMode) return;
       const latlng = e.latlng;
       if (!batasCianjur) return;
+      // cek apakah klik di dalam wilayah Cianjur
       const isInCianjur = turf.booleanPointInPolygon(
         turf.point([latlng.lng, latlng.lat]),
         batasCianjur.features ? batasCianjur.features[0] : batasCianjur
@@ -672,7 +818,7 @@ $polygon_json = json_encode([
       }
       if (manualMarker) map.removeLayer(manualMarker);
 
-      // Gunakan SVG icon manual agar selalu muncul di semua device
+      // Icon marker manual (SVG biru)
       let manualIcon = L.icon({
         iconUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="blue" viewBox="0 0 16 16"><path d="M8 1a7 7 0 0 1 7 7c0 4.418-7 7-7 7S1 12.418 1 8a7 7 0 0 1 7-7zm0 2a5 5 0 0 0-5 5c0 2.5 4.5 4.5 5 4.5s5-2 5-4.5A5 5 0 0 0 8 3zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"/></svg>',
         iconSize: [32, 32],
@@ -681,7 +827,7 @@ $polygon_json = json_encode([
         className: 'manual-location-icon'
       });
 
-      // Tambahkan marker manual yang SELALU tampil
+      // Tambahkan marker manual pada peta
       manualMarker = L.marker(latlng, { draggable: true, icon: manualIcon }).addTo(map)
         .bindPopup('<span style="color:#0d6efd;"><i class="bi bi-person-fill"></i> Lokasi Manual</span>').openPopup();
 

@@ -8,7 +8,7 @@ require '../conection/db.php';
 
 // --- Titik evakuasi (marker) ---
 $markers = [];
-$res1 = $conn->query("SELECT id, nama, latitude, longitude, waktu_dibuat FROM titik_evakuasi");
+$res1 = $conn->query("SELECT id, nama, latitude, longitude, waktu_dibuat, kapasitas, fasilitas, foto, deskripsi FROM titik_evakuasi");
 while ($r = $res1->fetch_assoc()) {
     $markers[] = [
         'type' => 'Feature',
@@ -19,7 +19,11 @@ while ($r = $res1->fetch_assoc()) {
         'properties' => [
             'id'           => (int)$r['id'],
             'nama'         => $r['nama'],
-            'waktu_dibuat' => $r['waktu_dibuat']
+            'waktu_dibuat' => $r['waktu_dibuat'],
+            'kapasitas'    => $r['kapasitas'],
+            'fasilitas'    => $r['fasilitas'],
+            'foto'         => $r['foto'],
+            'deskripsi'    => $r['deskripsi']
         ]
     ];
 }
@@ -30,7 +34,7 @@ $marker_geojson = json_encode([
 
 // --- Polygon wilayah bencana ---
 $polygons = [];
-$res2 = $conn->query("SELECT id, nama, geojson, color, created_at FROM wilayah_bencana");
+$res2 = $conn->query("SELECT id, nama, geojson, color, created_at, luas, status FROM wilayah_bencana");
 while ($r = $res2->fetch_assoc()) {
     $geojson = json_decode($r['geojson'], true);
     if ($geojson) {
@@ -39,6 +43,8 @@ while ($r = $res2->fetch_assoc()) {
             $feature['properties']['nama']       = $r['nama'];
             $feature['properties']['color']      = $r['color'];
             $feature['properties']['created_at'] = $r['created_at'];
+            $feature['properties']['luas']       = $r['luas'] ?? null;
+            $feature['properties']['status']     = $r['status'] ?? null;
         }
         $polygons = array_merge($polygons, $geojson['features']);
     }
@@ -455,42 +461,62 @@ function esc($s) { return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); }
 
   // Markers
   const markers = <?= $marker_geojson ?>;
-  L.geoJSON(markers, {
-    pointToLayer: (feature, latlng) => L.marker(latlng),
-    onEachFeature: (feature, layer) => {
-      const p = feature.properties;
-      layer.bindPopup(
-        `<strong>${p.nama}</strong><br>` +
-        `<small>Dibuat: ${p.waktu_dibuat}</small>`
-      );
-    }
-  }).addTo(map);
+L.geoJSON(markers, {
+  pointToLayer: (feature, latlng) => L.marker(latlng),
+  onEachFeature: (feature, layer) => {
+    const p = feature.properties;
+    let popupHtml = `<div style="min-width:220px;">
+      <div class="fw-bold mb-1"><i class="bi bi-geo-alt-fill text-primary"></i> ${p.nama}</div>
+      <div class="mb-1"><b>Kapasitas:</b> ${p.kapasitas || '-'}<br><b>Fasilitas:</b> ${p.fasilitas || '-'}</div>
+      <div class="small text-muted mb-1">Lat: <b>${feature.geometry.coordinates[1]}</b> | Lng: <b>${feature.geometry.coordinates[0]}</b></div>
+      <div class="mb-1">${p.deskripsi ? p.deskripsi : '<span class="text-muted fst-italic">Tidak ada deskripsi</span>'}</div>
+      ${p.foto ? `<img src="${p.foto}" alt="Foto" style="max-width:100px;max-height:80px;border-radius:6px"><br>` : ''}
+      <div class="text-secondary small">${p.waktu_dibuat ? 'Dibuat: ' + p.waktu_dibuat : ''}</div>
+    </div>`;
+    layer.bindPopup(popupHtml); // <-- DI SINI popup marker diatur
+  }
+}).addTo(map);
 
   // Polygons
-  const polygons = <?= $polygon_geojson ?>;
-  const colorSet = new Set();
-  const namaColorMap = new Map();
+map.createPane('polygonPane');
+map.getPane('polygonPane').style.zIndex = 650;
 
-  L.geoJSON(polygons, {
-    style: (feature) => {
-      const color = feature.properties.color || 'red';
-      colorSet.add(color);
-      namaColorMap.set(feature.properties.nama, color);
-      return {
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.35,
-        weight: 2
-      };
-    },
-    onEachFeature: (feature, layer) => {
-      const p = feature.properties;
-      layer.bindPopup(
-        `<strong>Wilayah: ${p.nama}</strong><br>` +
-        `<small>Dibuat: ${p.created_at}</small>`
-      );
-    }
-  }).addTo(map);
+const polygons = <?= $polygon_geojson ?>;
+const colorSet = new Set();
+const namaColorMap = new Map();
+
+L.geoJSON(polygons, {
+  pane: 'polygonPane',
+  style: (feature) => {
+    const color = feature.properties.color || 'red';
+    colorSet.add(color);
+    namaColorMap.set(feature.properties.nama, color);
+    return {
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.35,
+      weight: 2
+    };
+  },
+  onEachFeature: (feature, layer) => {
+    const p = feature.properties;
+    let popupHtml = `
+    <div style="min-width:220px; position: relative; z-index: 1;">
+      <div class="fw-bold mb-1"><i class="bi bi-vector-pen text-success"></i> ${p.nama}</div>
+      <div class="mb-1">
+        <span class="badge " style="background:${p.color};">
+          ${p.status}
+        </span>
+      </div>
+      <div class="mb-1"><b>Luas:</b> ${p.luas ? (Number(p.luas).toLocaleString('id') + ' m²') : '-'}</div>
+      <div class="mb-1"><b>Waktu dibuat:</b> ${p.created_at}</div>
+    </div>
+  `;
+    layer.bindPopup(popupHtml);
+    layer.bringToFront(); // <-- Tambahkan ini
+  }
+}).addTo(map);
+
 
   // Build Legend from polygons
   if (namaColorMap.size > 0) {
