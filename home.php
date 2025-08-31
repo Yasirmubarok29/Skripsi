@@ -802,7 +802,7 @@ console.log('PHP: Load Poligon Bencana: " . number_format($durasiLoadPolygon, 2)
       }
     }
 
-    // Event klik pada peta untuk mode manual (user pilih lokasi manual)
+    // Event klik pada peta untuk mode manual (user pilih lokasi manual)//
     map.on('click', function(e) {
       if (!manualMode) return;
       const latlng = e.latlng;
